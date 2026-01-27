@@ -1,4 +1,3 @@
-// app/auth/login/page.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -19,7 +18,7 @@ interface IDecodedJWT {
   role: string;
 }
 
-interface FormErrors {
+interface FormMessages {
   email?: string;
   password?: string;
   general?: string;
@@ -36,7 +35,7 @@ const LoginPage: React.FC = () => {
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [messages, setMessages] = useState<FormMessages>({});
   const { checkAuthStatus } = useAuth();
 
   const validateEmail = (email: string): boolean => {
@@ -45,28 +44,28 @@ const LoginPage: React.FC = () => {
   };
 
   const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
+    const newMessages: FormMessages = {};
 
     if (!formData.email) {
-      newErrors.email = "Email is required";
+      newMessages.email = "Email is required to continue";
     } else if (!validateEmail(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
+      newMessages.email = "Please enter a valid email address";
     }
 
     if (!formData.password) {
-      newErrors.password = "Password is required";
+      newMessages.password = "Password is required to continue";
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setMessages(newMessages);
+    return Object.keys(newMessages).length === 0;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({
+    if (messages[name as keyof FormMessages]) {
+      setMessages((prev) => ({
         ...prev,
         [name]: undefined,
       }));
@@ -75,7 +74,7 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrors({});
+    setMessages({});
 
     if (!validateForm()) {
       return;
@@ -111,47 +110,46 @@ const LoginPage: React.FC = () => {
         
         checkAuthStatus();
         
-        toast.success('Login successful! Welcome back.');
+        toast.success('Welcome back! Login successful.');
         
         if (decodedUser.role === 'admin') {
-          
-          console.log('👑 Admin detected, redirecting to admin dashboard');
           router.push('/admin/dashboard');
         } else {
-          
           const redirectUrl = sessionStorage.getItem('redirectAfterLogin') || '/connect-hub';
           sessionStorage.removeItem('redirectAfterLogin');
           router.push(redirectUrl);
         }
         
       } else {
-        let errorMessage = 'Login failed. Please try again.';
+        let message = 'Unable to log in. Please check your credentials and try again.';
         
         if (typeof response.error === 'string') {
-          errorMessage = response.error;
+          message = response.error;
         } else if (response.message) {
-          errorMessage = response.message;
+          message = response.message;
         }
         
-        setErrors({ general: errorMessage });
+        setMessages({ general: message });
+        toast.info(message);
       }
     } catch (err: any) {
       console.error('Login error:', err);
       
-      let errorMessage = 'Invalid credentials. Please check your email and password and try again.';
+      let message = 'We could not log you in. Please check your email and password and try again.';
       
       if (err.response?.data) {
         const errorData = err.response.data;
         if (typeof errorData.error === 'string') {
-          errorMessage = errorData.error;
+          message = errorData.error;
         } else if (errorData.message) {
-          errorMessage = errorData.message;
+          message = errorData.message;
         }
       } else if (err.message) {
-        errorMessage = err.message;
+        message = err.message;
       }
       
-      setErrors({ general: errorMessage });
+      setMessages({ general: message });
+      toast.info(message);
     } finally {
       setLoading(false);
     }
@@ -163,57 +161,65 @@ const LoginPage: React.FC = () => {
       rightTitle="Continue to Grow and Learn."
     >
       <div>
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Login</h1>
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome Back</h1>
         <p className="text-gray-500 text-sm mb-8">
-          Please login to continue to your account.
+          Please enter your credentials to access your account.
         </p>
 
-        {errors.general && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
-            {errors.general}
+        {messages.general && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-md text-sm">
+            {messages.general}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
             <input
               type="email"
               name="email"
-              placeholder="Email"
+              placeholder="Enter your email"
               value={formData.email}
               onChange={handleInputChange}
               disabled={loading}
               className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] focus:border-transparent text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
-                errors.email ? 'border-red-500' : 'border-gray-300'
+                messages.email ? 'border-blue-500' : 'border-gray-300'
               }`}
             />
-            {errors.email && (
-              <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+            {messages.email && (
+              <p className="text-blue-600 text-xs mt-1">{messages.email}</p>
             )}
           </div>
 
-          <div className="relative">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleInputChange}
-              disabled={loading}
-              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] focus:border-transparent text-sm pr-12 disabled:opacity-50 disabled:cursor-not-allowed ${
-                errors.password ? 'border-red-500' : 'border-gray-300'
-              }`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              disabled={loading}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-            >
-              {showPassword ? '🙈' : '👁️'}
-            </button>
-            {errors.password && (
-              <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={handleInputChange}
+                disabled={loading}
+                className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] focus:border-transparent text-sm pr-12 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  messages.password ? 'border-blue-500' : 'border-gray-300'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={loading}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+            {messages.password && (
+              <p className="text-blue-600 text-xs mt-1">{messages.password}</p>
             )}
           </div>
 
@@ -233,7 +239,7 @@ const LoginPage: React.FC = () => {
               href="/auth/forgot-password"
               className="text-[#9FC93B] hover:text-[#89B534] font-medium"
             >
-              Forgot password
+              Forgot password?
             </Link>
           </div>
 
@@ -248,7 +254,7 @@ const LoginPage: React.FC = () => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Signing In...
+                Signing you in...
               </>
             ) : (
               'Sign In'
@@ -261,7 +267,7 @@ const LoginPage: React.FC = () => {
               href="/auth/signup"
               className="text-[#9FC93B] hover:text-[#89B534] font-medium underline"
             >
-              Create one
+              Create one here
             </Link>
           </div>
         </form>
