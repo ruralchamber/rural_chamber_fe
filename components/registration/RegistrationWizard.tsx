@@ -81,150 +81,226 @@ function RegistrationWizardContent() {
   const router = useRouter();
 
   useEffect(() => {
-    const clearRegistrationData = () => {
-      const keysToKeep = [
-        "access_token",
-        "refresh_token",
-        "accessToken",
-        "refreshToken",
-      ];
-      const storage: { [key: string]: string | null } = {};
-
-      keysToKeep.forEach((key) => {
-        storage[key] = localStorage.getItem(key);
-      });
-
-      localStorage.clear();
-
-      Object.entries(storage).forEach(([key, value]) => {
-        if (value) localStorage.setItem(key, value);
-      });
+    const loadExistingRegistration = async () => {
+      try {
+        const userData = localStorage.getItem("user_data");
+        const registrationInProgress = localStorage.getItem("registration_in_progress");
+        
+        if (userData && registrationInProgress === "true") {
+          const user = JSON.parse(userData);
+          setCurrentUser(user);
+          
+          try {
+          const progressResponse = await REGISTRATION_API.GET_PROGRESS(user.id);
+          if (!progressResponse.error && progressResponse.data) {
+            const { registration, currentStep: savedStep, steps } = progressResponse.data;
+            
+            let restoredData = { ...registrationData };
+            steps?.forEach(step => {
+              if (step.data) { // Changed from step.stepData to step.data
+                restoredData = { ...restoredData, ...step.data };
+              }
+            });
+            
+            setRegistrationData(restoredData);
+            
+            if (savedStep && savedStep > 1) {
+              setCurrentStep(savedStep);
+              
+              // Check if email is verified from user data
+              const user = await REGISTRATION_API.CHECK_VERIFICATION_STATUS(restoredData.email as string);
+              if (user.data?.emailVerified) {
+                setEmailVerified(true);
+              }
+            }
+            
+            setSearchParamsInitialized(true);
+            return;
+          }
+        } catch (error) {
+          console.warn("Could not restore from backend");
+        }
+          
+          const savedRegistrationData = localStorage.getItem("registration_data");
+          const savedStep = localStorage.getItem("current_registration_step");
+          const savedEmailVerified = localStorage.getItem("email_verified");
+          
+          if (savedRegistrationData) {
+            try {
+              const parsedData = JSON.parse(savedRegistrationData);
+              setRegistrationData(prev => ({ ...prev, ...parsedData }));
+            } catch (e) {
+              console.error("Failed to parse saved registration data:", e);
+            }
+          }
+          
+          if (savedStep) {
+            const stepNum = parseInt(savedStep);
+            if (!isNaN(stepNum) && stepNum > 1) {
+              setCurrentStep(stepNum);
+            }
+          }
+          
+          if (savedEmailVerified === "true") {
+            setEmailVerified(true);
+          }
+        }
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const verified = urlParams.get("verified");
+        
+        if (verified === "true" && userData) {
+          const user = JSON.parse(userData);
+          setCurrentUser(user);
+          setEmailVerified(true);
+          
+          localStorage.setItem("email_verified", "true");
+          localStorage.setItem("registration_in_progress", "true");
+          
+          const savedStep = localStorage.getItem("current_registration_step");
+          if (savedStep === "2") {
+            setCurrentStep(3);
+            localStorage.setItem("current_registration_step", "3");
+          } else if (!savedStep) {
+            setCurrentStep(3);
+            localStorage.setItem("current_registration_step", "3");
+          }
+          
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          toast.success("Email verified! Continue with your registration.");
+        }
+        
+      } catch (error) {
+        console.error("Failed to load existing registration:", error);
+      } finally {
+        setSearchParamsInitialized(true);
+      }
     };
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const verified = urlParams.get("verified");
-    const continueReg = localStorage.getItem("continue_registration");
-    const userData = localStorage.getItem("user_data");
-
-    if (verified === "true" && continueReg === "true" && userData) {
-      const user = JSON.parse(userData);
-      setCurrentUser(user);
-      setEmailVerified(true);
-      setCurrentStep(3);
-
-      setRegistrationData((prev) => ({
-        ...prev,
-        email: user.email,
-        firstName: user.fullName?.split(" ")[0] || "",
-        lastName: user.fullName?.split(" ").slice(1).join(" ") || "",
-      }));
-
-      localStorage.removeItem("continue_registration");
-      localStorage.removeItem("email_verified");
-
-      toast.success("Email verified! Continue with your registration.");
-    } else {
-      clearRegistrationData();
-    }
-
-    setSearchParamsInitialized(true);
-
-    const handleBeforeUnload = () => {
-      clearRegistrationData();
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
+    loadExistingRegistration();
   }, []);
 
   const updateRegistrationData = (updates: Partial<RegistrationData>) => {
     setRegistrationData((prev) => ({ ...prev, ...updates }));
   };
 
-  const handleInitialRegistration = async (data: {
-    email: string;
-    cellphone: string;
-    firstName: string;
-    lastName: string;
-    password: string;
-  }) => {
-    setIsLoading(true);
-    try {
-      const response = await REGISTRATION_API.START_REGISTRATION({
-        fullName: `${data.firstName} ${data.lastName}`,
-        email: data.email,
-        password: data.password,
-        role: "customer",
-        cellphone: data.cellphone,
-      });
+ const handleInitialRegistration = async (data: {
+  email: string;
+  cellphone: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+}) => {
+  setIsLoading(true);
+  try {
+    const response = await REGISTRATION_API.START_REGISTRATION({
+      fullName: `${data.firstName} ${data.lastName}`,
+      email: data.email,
+      password: data.password,
+      role: "customer",
+      cellphone: data.cellphone,
+    });
 
-      if (response.error) {
-        if (response.message?.includes("already registered and verified")) {
-          toast.error(
-            "This email is already registered. Please login instead.",
-            {
-              duration: 6000,
-              action: {
-                label: "Go to Login",
-                onClick: () => router.push("/auth/login"),
-              },
-            }
-          );
-          return;
-        }
-
-        throw new Error(response.message || "Registration failed");
+    if (response.error) {
+      // Handle structured error response
+      if (response.status === 409) {
+        toast.info(response.message || "You already have an account.", {
+          duration: 6000,
+          action: {
+            label: "Go to Login",
+            onClick: () => router.push("/auth/login"),
+          },
+        });
+        return;
       }
 
-      const userData = {
-        id: response.data.user.id,
-        email: response.data.user.email,
-        fullName: response.data.user.fullName,
-      };
+      if (response.message) {
+        toast.info(response.message, { duration: 5000 });
+      } else {
+        toast.info("Registration failed. Please try again.", { duration: 5000 });
+      }
+      return;
+    }
 
-      localStorage.setItem("user_data", JSON.stringify(userData));
-      localStorage.setItem("access_token", response.data.tokenData.accessToken);
-      localStorage.setItem(
-        "refresh_token",
-        response.data.tokenData.refreshToken
-      );
+    const userData = {
+      id: response.data.user.id,
+      email: response.data.user.email,
+      fullName: response.data.user.fullName,
+    };
 
-      setCurrentUser(userData);
-      updateRegistrationData(data);
-      setCurrentStep(2);
+    localStorage.setItem("user_data", JSON.stringify(userData));
+    localStorage.setItem("access_token", response.data.tokenData.accessToken);
+    localStorage.setItem(
+      "refresh_token",
+      response.data.tokenData.refreshToken
+    );
+    localStorage.setItem("registration_in_progress", "true");
+    
+    // Set current step based on response
+    const currentStep = response.data.currentStep || 2;
+    localStorage.setItem("current_registration_step", currentStep.toString());
+    
+    const stepData = {
+      email: data.email,
+      cellphone: data.cellphone,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      password: data.password
+    };
+    localStorage.setItem("registration_data", JSON.stringify(stepData));
 
+    setCurrentUser(userData);
+    updateRegistrationData(data);
+    
+    // Set the appropriate step
+    setCurrentStep(currentStep);
+
+    // Show appropriate message based on user status
+    if (response.data.status === "new") {
       toast.success(
         "Registration successful! Please check your email to verify your account.",
         { duration: 6000 }
       );
-    } catch (error: any) {
-      console.error("Registration error:", error);
-
-      let errorMessage =
-        "This email is already registered and verified. Please login instead.";
-
-      if (error.message?.includes("already exists")) {
-        errorMessage =
-          "This email is already in use. Please use a different email or login.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      toast.error(errorMessage, { duration: 5000 });
-    } finally {
-      setIsLoading(false);
+    } else if (response.data.status === "unverified") {
+      toast.info(
+        "Welcome back! Please verify your email to continue.",
+        { duration: 5000 }
+      );
+    } else if (response.data.status === "verified_incomplete") {
+      toast.success(
+        `Welcome back! Continuing registration from step ${currentStep}.`,
+        { duration: 5000 }
+      );
     }
-  };
+  } catch (error: any) {
+    console.error("Registration error:", error);
+    
+    // Handle error with structured response
+    if (error.response?.status === 409) {
+      toast.info(error.response.data?.message || "You already have an account.", {
+        duration: 6000,
+        action: {
+          label: "Go to Login",
+          onClick: () => router.push("/auth/login"),
+        },
+      });
+    } else if (error.response?.data?.message) {
+      toast.info(error.response.data.message, { duration: 5000 });
+    } else if (error.message) {
+      toast.info("Unable to complete registration. Please try again.", { duration: 5000 });
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const saveStepToBackend = async (
     stepNumber: number,
     stepData: any
   ): Promise<boolean> => {
     if (!currentUser) {
-      toast.error("User session not found. Please start registration again.", {
+      toast.info("Please start your registration again.", {
         duration: 5000,
         action: {
           label: "Start Over",
@@ -242,47 +318,32 @@ function RegistrationWizardContent() {
       });
 
       if (response.error) {
-        if (response.message?.includes("User not found")) {
-          toast.error(
-            "Your session has expired. Please start registration again.",
-            {
-              duration: 5000,
-              action: {
-                label: "Start Over",
-                onClick: handleStartFresh,
-              },
-            }
-          );
-          return false;
+        if (response.message) {
+          toast.info(response.message, { duration: 5000 });
+        } else {
+          toast.info("Unable to save your progress.", { duration: 5000 });
         }
-
-        toast.error(
-          response.message || "Failed to save step. Please try again.",
-          { duration: 5000 }
-        );
         return false;
       }
+
+      localStorage.setItem("registration_in_progress", "true");
+      localStorage.setItem("current_registration_step", stepNumber.toString());
+      
+      const currentData = {
+        ...registrationData,
+        ...stepData
+      };
+      localStorage.setItem("registration_data", JSON.stringify(currentData));
 
       return true;
     } catch (error: any) {
       console.error("Failed to save step:", error);
-
-      let errorMessage = "Failed to save your progress.";
-
-      if (error.message?.includes("not found")) {
-        errorMessage =
-          "Your session has expired. Please start registration again.";
-      } else if (error.message) {
-        errorMessage = error.message;
+      
+      if (error.response?.data?.message) {
+        toast.info(error.response.data.message, { duration: 5000 });
+      } else {
+        toast.info("Unable to save your progress.", { duration: 5000 });
       }
-
-      toast.error(errorMessage, {
-        duration: 5000,
-        action: {
-          label: "Start Over",
-          onClick: handleStartFresh,
-        },
-      });
       return false;
     }
   };
@@ -303,7 +364,7 @@ function RegistrationWizardContent() {
   const handleAddressDetails = async (data: any) => {
     const sessionValid = await checkSessionValidity();
     if (!sessionValid) {
-      toast.error("Your session has expired. Please start registration again.");
+      toast.info("Your session has expired. Please start registration again.");
       handleStartFresh();
       return;
     }
@@ -318,7 +379,7 @@ function RegistrationWizardContent() {
   const handlePersonalDetails = async (data: any) => {
     const sessionValid = await checkSessionValidity();
     if (!sessionValid) {
-      toast.error("Your session has expired. Please start registration again.");
+      toast.info("Your session has expired. Please start registration again.");
       handleStartFresh();
       return;
     }
@@ -337,7 +398,7 @@ function RegistrationWizardContent() {
   const handleCompanyDetails = async (data: any) => {
     const sessionValid = await checkSessionValidity();
     if (!sessionValid) {
-      toast.error("Your session has expired. Please start registration again.");
+      toast.info("Your session has expired. Please start registration again.");
       handleStartFresh();
       return;
     }
@@ -352,7 +413,7 @@ function RegistrationWizardContent() {
   const handleMembershipSelection = async (data: any) => {
     const sessionValid = await checkSessionValidity();
     if (!sessionValid) {
-      toast.error("Your session has expired. Please start registration again.");
+      toast.info("Your session has expired. Please start registration again.");
       handleStartFresh();
       return;
     }
@@ -369,7 +430,7 @@ function RegistrationWizardContent() {
           toast.success(
             "Registration complete! Welcome to Rural Chamber of Commerce!"
           );
-          router.push("/connect-hub");
+          router.push("/auth/login");
         }
       }
     }
@@ -391,13 +452,21 @@ function RegistrationWizardContent() {
         throw new Error(response.message || "Failed to complete registration");
       }
 
-      localStorage.removeItem("user_data");
+      localStorage.removeItem("registration_in_progress");
+      localStorage.removeItem("registration_data");
+      localStorage.removeItem("current_registration_step");
       localStorage.removeItem("continue_registration");
       localStorage.removeItem("email_verified");
 
+      toast.success(
+        "Registration complete! Welcome to Rural Chamber of Commerce! Please login with your credentials."
+      );
+      
+      router.push("/auth/login");
+      
       return true;
     } catch (error: any) {
-      toast.error(
+      toast.info(
         error.message || "Failed to complete registration. Please try again."
       );
       return false;
@@ -411,12 +480,13 @@ function RegistrationWizardContent() {
       await REGISTRATION_API.RESEND_VERIFICATION(email);
       toast.success("Verification email sent successfully!");
     } catch (error: any) {
-      toast.error(error.message || "Failed to send verification email");
+      toast.info(error.message || "Failed to send verification email");
     }
   };
 
   const handleEmailVerified = async () => {
     setEmailVerified(true);
+    localStorage.setItem("email_verified", "true");
     await saveStepToBackend(2, { emailVerified: true });
     setCurrentStep(3);
     toast.success("Email verified! Continue with your registration.");
@@ -529,7 +599,6 @@ function RegistrationWizardContent() {
               amount: registrationData.membershipAmount,
               billingFrequency: registrationData.billingFrequency,
             }}
-            
             onBack={() => setCurrentStep(6)}
           />
         ) : null;
@@ -539,23 +608,26 @@ function RegistrationWizardContent() {
   };
 
   const handleStartFresh = () => {
-    const keysToKeep = [
-      "access_token",
-      "refresh_token",
-      "accessToken",
-      "refreshToken",
-    ];
-    const storage: { [key: string]: string | null } = {};
+    if (!window.confirm("Are you sure you want to start over? All your progress will be lost.")) {
+      return;
+    }
 
-    keysToKeep.forEach((key) => {
-      storage[key] = localStorage.getItem(key);
-    });
-
+    localStorage.removeItem("registration_in_progress");
+    localStorage.removeItem("registration_data");
+    localStorage.removeItem("current_registration_step");
+    localStorage.removeItem("email_verified");
+    localStorage.removeItem("continue_registration");
+    
+    const accessToken = localStorage.getItem("access_token");
+    const refreshToken = localStorage.getItem("refresh_token");
+    
+    const userData = localStorage.getItem("user_data");
+    
     localStorage.clear();
-
-    Object.entries(storage).forEach(([key, value]) => {
-      if (value) localStorage.setItem(key, value);
-    });
+    
+    if (accessToken) localStorage.setItem("access_token", accessToken);
+    if (refreshToken) localStorage.setItem("refresh_token", refreshToken);
+    if (userData) localStorage.setItem("user_data", userData);
 
     setCurrentStep(1);
     setRegistrationData({

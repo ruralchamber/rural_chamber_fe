@@ -9,6 +9,8 @@ const RegistrationBaseURL = `${baseUrl}/registration`;
 export interface StartRegistrationResponse {
   registration: any;
   user: any;
+  status: string
+  currentStep: any
   tokenData: TokenData;
 }
 

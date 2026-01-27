@@ -3,23 +3,21 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Check, ArrowRight, Loader2 } from "lucide-react";
+import { Check, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SUBSCRIPTION_API, SubscriptionType } from "@/app/api/endpoints/rest-api/subscription/subscription";
 
 interface PricingTier {
-  id: SubscriptionType;
+  id: string;
   name: string;
-  monthlyPrice: number;
-  annualPrice: number;
-  subtitle: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
+  description: string;
+  monthlyAmount: number;
+  annualAmount: number;
   features: string[];
-  buttonText: string;
-  buttonStyle: string;
+  accountType: string;
+  membershipType: SubscriptionType;
+  isActive: boolean;
 }
 
 export default function MembershipPricing() {
@@ -28,9 +26,14 @@ export default function MembershipPricing() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
+  const [plans, setPlans] = useState<PricingTier[]>([]);
+  const [userAccountType, setUserAccountType] = useState<"individual" | "organizational">("individual");
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
 
   useEffect(() => {
+    loadUserInfo();
     checkCurrentSubscription();
+    fetchPlans();
     
     const urlParams = new URLSearchParams(window.location.search);
     const reference = urlParams.get('reference');
@@ -39,6 +42,19 @@ export default function MembershipPricing() {
       handlePaymentSuccess(reference);
     }
   }, []);
+
+  const loadUserInfo = () => {
+    try {
+      const userData = localStorage.getItem('userInfo');
+      if (userData) {
+        const parsedUser = JSON.parse(userData);
+        const accountType = parsedUser.accountType || "individual";
+        setUserAccountType(accountType);
+      }
+    } catch (error) {
+      console.error('Error loading user info:', error);
+    }
+  };
 
   const checkCurrentSubscription = async () => {
     try {
@@ -49,7 +65,6 @@ export default function MembershipPricing() {
                     localStorage.getItem('token');
       
       if (!token) {
-        console.log('No token found, user not logged in');
         return;
       }
 
@@ -65,256 +80,195 @@ export default function MembershipPricing() {
     }
   };
 
-  const handlePaymentSuccess = async (reference: string) => {
-    setIsLoading(true);
+  const fetchPlans = async () => {
     try {
-      toast.success('Payment successful! Activating your subscription...');
+      setIsLoadingPlans(true);
+      const response = await SUBSCRIPTION_API.GET_SUBSCRIPTION_PLANS();
       
-      const pendingSubscription = sessionStorage.getItem('pendingSubscription');
-      if (pendingSubscription) {
-        const subscriptionData = JSON.parse(pendingSubscription);
+      let fetchedPlans: PricingTier[] = [];
+      
+      if (response.data) {
+        const apiData = response.data;
         
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-        const userId = userInfo.id || userInfo.userId;
-        
-        if (userId) {
-          const subscriptionResponse = await SUBSCRIPTION_API.CREATE_SUBSCRIPTION({
-            userId: parseInt(userId),
-            registrationId: subscriptionData.registrationId,
-            subscriptionType: subscriptionData.subscriptionType,
-            billingFrequency: subscriptionData.billingFrequency,
-            amount: subscriptionData.amount,
-          });
-          
-          if (subscriptionResponse.error) {
-            toast.error('Payment successful but subscription creation failed. Please contact support.');
-          } else {
-            toast.success('Subscription activated successfully!');
-            setCurrentSubscription(subscriptionResponse.data);
-            sessionStorage.removeItem('pendingSubscription');
-            window.history.replaceState({}, document.title, window.location.pathname);
-            
-            setTimeout(() => {
-              router.push('/subscription/profile');
-            }, 2000);
-          }
+        if (userAccountType === "individual" && apiData.individual) {
+          fetchedPlans = apiData.individual.map((plan: any) => ({
+            id: plan.id,
+            name: plan.name,
+            description: plan.description,
+            monthlyAmount: plan.monthlyAmount,
+            annualAmount: plan.annualAmount,
+            features: plan.features || [],
+            accountType: plan.accountType,
+            membershipType: plan.membershipType,
+            isActive: plan.isActive
+          }));
+        } else if (userAccountType === "organizational" && apiData.organizational) {
+          fetchedPlans = apiData.organizational.map((plan: any) => ({
+            id: plan.id,
+            name: plan.name,
+            description: plan.description,
+            monthlyAmount: plan.monthlyAmount,
+            annualAmount: plan.annualAmount,
+            features: plan.features || [],
+            accountType: plan.accountType,
+            membershipType: plan.membershipType,
+            isActive: plan.isActive
+          }));
         }
       }
+      
+      const freePlan: PricingTier = {
+        id: "free",
+        name: "Free Membership",
+        description: "Access to Industry-Specific Content",
+        monthlyAmount: 0,
+        annualAmount: 0,
+        features: ["Limited Networking Opportunities"],
+        accountType: userAccountType,
+        membershipType: "free" as SubscriptionType,
+        isActive: true
+      };
+      
+      setPlans([freePlan, ...fetchedPlans]);
     } catch (error: any) {
-      console.error('Payment success processing error:', error);
-      toast.error('Failed to process payment. Please contact support.');
+      console.error('Error fetching plans:', error);
+      toast.error('Failed to load membership plans');
     } finally {
-      setIsLoading(false);
+      setIsLoadingPlans(false);
     }
   };
 
-  const pricingTiers: PricingTier[] = [
-    {
-      id: "free",
-      name: "Free Membership",
-      monthlyPrice: 0,
-      annualPrice: 0,
-      subtitle: "Access to Industry-Specific Content",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: ["Limited Networking Opportunities"],
-      buttonText: "Join for Free",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "individual_silver",
-      name: "Individual Silver",
-      monthlyPrice: 46,
-      annualPrice: 500,
-      subtitle: "Perfect for entrepreneurs and small business owners",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "Networking Sessions/Stream",
-        "Access to Monthly Events",
-        "Business Planning & Advisory",
-        "Business Finance Support Assistance",
-        "Association Affiliation",
-      ],
-      buttonText: "Select Plan",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "individual_gold",
-      name: "Individual Gold",
-      monthlyPrice: 115,
-      annualPrice: 1250,
-      subtitle: "Enhanced benefits for growing businesses",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "All Silver features and more",
-        "Ohakaza Membership benefits:",
-        "Goats farming study guides,",
-        "Access to online practicals, member card",
-        "Enhanced networking opportunities with tangible actions and results",
-      ],
-      buttonText: "Select Plan",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "individual_platinum",
-      name: "Individual Platinum",
-      monthlyPrice: 230,
-      annualPrice: 2500,
-      subtitle: "Comprehensive support for established businesses",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "Silver, Gold packages and more",
-        "Access to exclusive events, conferences,",
-        "Travels to meet and expand business in other countries",
-        "Co-travel opportunities with the team to meet global investors, partners and other stakeholders",
-      ],
-      buttonText: "Select Plan",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "organizational_silver",
-      name: "Organizational Silver",
-      monthlyPrice: 230,
-      annualPrice: 2500,
-      subtitle: "Great for small organizations and non-profits",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "Networking Sessions/Stream",
-        "Access to Monthly Events",
-        "Business Planning & Advisory",
-        "Business Finance Support Assistance",
-        "Association Affiliation",
-      ],
-      buttonText: "Select Plan",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "organizational_gold",
-      name: "Organizational Gold",
-      monthlyPrice: 350,
-      annualPrice: 3500,
-      subtitle: "Enhanced organizational benefits",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "All Silver features and more",
-        "Ohakaza Membership benefits:",
-        "Goats farming study guides,",
-        "access to online practicals, member card",
-        "Enhanced networking opportunities with tangible actions and results",
-      ],
-      buttonText: "Select Plan",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "organizational_platinum",
-      name: "Organizational Platinum",
-      monthlyPrice: 460,
-      annualPrice: 5000,
-      subtitle: "Comprehensive support for established businesses",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "Silver, Gold packages and more",
-        "Access to exclusive events, conferences,",
-        "Travels to meet and expand business in other countries",
-        "Co-travel opportunities with the team to meet global investors, partners and other stakeholders",
-      ],
-      buttonText: "Contact Us",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-  ];
+const handleSelectPlan = async (plan: PricingTier) => {
+  const token = localStorage.getItem('accessToken') || 
+                localStorage.getItem('access_token') ||
+                localStorage.getItem('token');
+  
+  if (!token) {
+    toast.error('Please login to subscribe');
+    sessionStorage.setItem('redirectAfterLogin', '/membership');
+    router.push('/auth/login');
+    return;
+  }
 
-  const handleSelectPlan = async (tier: PricingTier) => {
-    const token = localStorage.getItem('accessToken') || 
-                  localStorage.getItem('access_token') ||
-                  localStorage.getItem('token');
+  setIsLoading(true);
+
+  try {
+    const amount = billingCycle === "monthly" ? plan.monthlyAmount : plan.annualAmount;
+    const isFreePlan = plan.membershipType === "free";
     
-    if (!token) {
-      toast.error('Please login to subscribe');
-      sessionStorage.setItem('redirectAfterLogin', '/membership');
-      router.push('/auth/login');
-      return;
-    }
+    const hasActiveSubscription = currentSubscription && 
+                                 (currentSubscription.status === 'active' || 
+                                  currentSubscription.status === 'paused');
 
-    if (tier.id === "free") {
-      try {
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-        const registrationId = userInfo.registrationId || userInfo.id;
-
-        if (registrationId) {
-          const subscriptionResponse = await SUBSCRIPTION_API.CREATE_SUBSCRIPTION({
-            userId: userInfo.id,
-            registrationId: registrationId,
-            subscriptionType: "free",
-            billingFrequency: "annual",
-            amount: 0,
-          });
-          
-          if (!subscriptionResponse.error) {
-            toast.success('Free membership activated!');
-            setCurrentSubscription(subscriptionResponse.data);
-          }
+    if (!hasActiveSubscription && !currentSubscription) {
+      if (isFreePlan) {
+        const updateResponse = await SUBSCRIPTION_API.UPDATE_SUBSCRIPTION_PLAN({
+          newSubscriptionType: "free",
+          newBillingFrequency: "annual"
+        });
+        
+        if (!updateResponse.error) {
+          toast.success(`Successfully subscribed to ${plan.name} plan!`);
+          setCurrentSubscription(updateResponse.data);
+        } else {
+          toast.error('Failed to subscribe to free plan: ' + updateResponse.message);
         }
-      } catch (error) {
-        toast.info('Free membership is automatically included');
+      } else {
+        toast.error('Please complete your registration first before subscribing to a paid plan.');
+        router.push('/auth/register');
       }
       return;
     }
 
-    if (tier.buttonText === "Contact Us") {
-      router.push('/contact-us');
+    const isCurrentPlan = currentSubscription?.subscriptionType === plan.membershipType;
+    if (isCurrentPlan) {
+      toast.info(`You're already on the ${plan.name} plan`);
       return;
     }
 
-    if (currentSubscription?.subscriptionType === tier.id) {
-      toast.info(`You are already subscribed to the ${tier.name} plan`);
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-      const registrationId = userInfo.registrationId || userInfo.id;
-
-      if (!registrationId) {
-        toast.error('User registration information not found');
-        router.push('/auth/login');
-        return;
-      }
-
-      const amount = billingCycle === "monthly" ? tier.monthlyPrice : tier.annualPrice;
-
+    const isCurrentPlanFree = currentSubscription?.subscriptionType === "free";
+    const isCurrentPlanPaid = currentSubscription?.subscriptionType !== "free" && currentSubscription?.amount > 0;
+    
+    if (isCurrentPlanFree && !isFreePlan) {
+      // Free → Paid: Redirect to payment
       const subscriptionData = {
-        subscriptionType: tier.id,
+        subscriptionType: plan.membershipType,
         billingFrequency: billingCycle,
         amount,
-        registrationId,
-        planName: tier.name,
+        planName: plan.name,
+        userId: currentSubscription?.userId,
+        registrationId: currentSubscription?.registrationId
       };
 
       sessionStorage.setItem('pendingSubscription', JSON.stringify(subscriptionData));
-      
-      router.push(`/payment?plan=${tier.id}&billing=${billingCycle}`);
-      
-    } catch (error: any) {
-      console.error('Error selecting plan:', error);
-      toast.error(error.message || 'Failed to process subscription');
-    } finally {
-      setIsLoading(false);
+      router.push(`/payment?plan=${plan.membershipType}&billing=${billingCycle}&upgrade=true`);
+      return;
     }
+
+    if (isCurrentPlanPaid && !isFreePlan) {
+      const updateResponse = await SUBSCRIPTION_API.UPDATE_SUBSCRIPTION_PLAN({
+        newSubscriptionType: plan.membershipType,
+        newBillingFrequency: billingCycle
+      });
+      
+      if (!updateResponse.error) {
+        toast.success(`Successfully changed to ${plan.name} plan!`);
+        setCurrentSubscription(updateResponse.data);
+        
+        const oldAmount = currentSubscription?.amount || 0;
+        const newAmount = updateResponse.data.amount;
+        
+        if (newAmount > oldAmount) {
+          const difference = newAmount - oldAmount;
+          toast.info(`You'll be charged R${difference.toFixed(2)} extra on your next billing cycle.`);
+        } else if (newAmount < oldAmount) {
+          const difference = oldAmount - newAmount;
+          toast.info(`You'll save R${difference.toFixed(2)} on your next billing cycle.`);
+        }
+      } else {
+        toast.error('Failed to change plan: ' + updateResponse.message);
+      }
+      return;
+    }
+
+    if (isCurrentPlanPaid && isFreePlan) {
+      const updateResponse = await SUBSCRIPTION_API.UPDATE_SUBSCRIPTION_PLAN({
+        newSubscriptionType: "free",
+        newBillingFrequency: "annual"
+      });
+      
+      if (!updateResponse.error) {
+        toast.success(`Successfully downgraded to ${plan.name} plan!`);
+        setCurrentSubscription(updateResponse.data);
+        toast.info('A pro-rated refund will be issued for your remaining subscription period.');
+      } else {
+        toast.error('Failed to change plan: ' + updateResponse.message);
+      }
+      return;
+    }
+
+    toast.error('Invalid subscription change request');
+    
+  } catch (error: any) {
+    console.error('Error selecting plan:', error);
+    
+    if (error.message?.includes('408') || error.message?.includes('timeout')) {
+      toast.error('Request timeout. The server is taking too long to respond. Please try again.');
+    } else {
+      toast.error(error.message || 'Failed to process subscription');
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  const handlePaymentSuccess = (reference: string) => {
+    toast.success('Payment successful! Your subscription has been activated.');
+    checkCurrentSubscription();
+    
+    const url = new URL(window.location.href);
+    url.searchParams.delete('reference');
+    window.history.replaceState({}, '', url.toString());
   };
 
   const containerVariants = {
@@ -337,6 +291,50 @@ export default function MembershipPricing() {
     },
   };
 
+  const formatPrice = (price: number) => {
+    if (price === 0) return "Free";
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      minimumFractionDigits: 2,
+    }).format(price);
+  };
+
+  if (isLoadingPlans) {
+    return (
+      <div className="w-full bg-white py-16 sm:py-20 lg:py-24">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#9FC93B] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading membership plans...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (plans.length === 0) {
+    return (
+      <div className="w-full bg-white py-16 sm:py-20 lg:py-24">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 text-center">
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="h-12 w-12 text-gray-400" />
+          </div>
+          <h3 className="text-2xl font-bold text-gray-700 mb-2">
+            No Plans Available
+          </h3>
+          <p className="text-gray-600 mb-6">
+            No membership plans are available for your account type ({userAccountType}).
+          </p>
+          <button
+            onClick={fetchPlans}
+            className="bg-[#9FC93B] hover:bg-[#8AB82F] text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            Retry Loading Plans
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full bg-white py-16 sm:py-20 lg:py-24">
       <motion.div
@@ -357,16 +355,46 @@ export default function MembershipPricing() {
           <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
             Select the membership plan that best fits your business needs
           </p>
+          <p className="text-sm text-gray-500 mt-2">
+            {userAccountType === "individual" ? "Individual" : "Organizational"} Plans
+          </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8 mb-12">
-          {pricingTiers.map((tier, index) => {
-            const price = billingCycle === "monthly" ? tier.monthlyPrice : tier.annualPrice;
-            const isCurrentPlan = currentSubscription?.subscriptionType === tier.id;
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex rounded-lg border border-gray-300 p-1">
+            <button
+              onClick={() => setBillingCycle("annual")}
+              className={`px-6 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                billingCycle === "annual"
+                  ? "bg-[#9FC93B] text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              Annual Billing
+            </button>
+            <button
+              onClick={() => setBillingCycle("monthly")}
+              className={`px-6 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                billingCycle === "monthly"
+                  ? "bg-[#9FC93B] text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              Monthly Billing
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-12">
+          {plans.map((plan) => {
+            const price = billingCycle === "monthly" ? plan.monthlyAmount : plan.annualAmount;
+            const isCurrentPlan = currentSubscription?.subscriptionType === plan.membershipType;
+            const hasActiveSubscription = currentSubscription && currentSubscription.status === 'active';
+            const isFreePlan = plan.membershipType === "free";
             
             return (
               <motion.div
-                key={tier.name}
+                key={plan.id}
                 variants={cardVariants}
                 whileHover={{
                   y: -8,
@@ -384,20 +412,20 @@ export default function MembershipPricing() {
                   <div className="mb-6">
                     <div className="flex items-baseline mb-2">
                       <span className="text-4xl sm:text-5xl font-bold text-gray-900">
-                        {tier.id === "organizational_platinum" ? "Custom" : `R${price}`}
+                        {formatPrice(price)}
                       </span>
-                      {tier.id !== "organizational_platinum" && tier.id !== "free" && (
+                      {!isFreePlan && (
                         <span className="text-base text-gray-500 ml-2">
-                          /{billingCycle === "monthly" ? "Month" : "Year"}
+                          /{billingCycle === "monthly" ? "month" : "year"}
                         </span>
                       )}
                     </div>
-                    <div className={`text-lg font-semibold mb-2 ${tier.color}`}>
-                      {tier.name}
+                    <div className="text-lg font-semibold mb-2 text-orange-600">
+                      {plan.name}
                     </div>
-                    <p className="text-sm text-gray-600">{tier.subtitle}</p>
+                    <p className="text-sm text-gray-600">{plan.description}</p>
 
-                    {tier.id !== "free" && tier.id !== "organizational_platinum" && (
+                    {!isFreePlan && (
                       <div className="h-1 relative top-2 mx-auto">
                         <Image
                           src="/Divider.png"
@@ -410,38 +438,13 @@ export default function MembershipPricing() {
                     )}
                   </div>
 
-                  {tier.id !== "free" && tier.id !== "organizational_platinum" && (
-                    <div className="flex gap-2 mb-6">
-                      <button
-                        onClick={() => setBillingCycle("annual")}
-                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                          billingCycle === "annual"
-                            ? "bg-[#9FC93B] text-white"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                        }`}
-                      >
-                        Annual
-                      </button>
-                      <button
-                        onClick={() => setBillingCycle("monthly")}
-                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                          billingCycle === "monthly"
-                            ? "bg-[#9FC93B] text-white"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                        }`}
-                      >
-                        Monthly
-                      </button>
-                    </div>
-                  )}
-
                   <ul className="space-y-4 mb-8 grow">
-                    {tier.features.map((feature, idx) => (
+                    {plan.features.map((feature, idx) => (
                       <li
                         key={idx}
                         className="flex items-start text-sm text-gray-700"
                       >
-                        <span className={`${tier.color} mr-3 mt-0.5 shrink-0`}>
+                        <span className="text-orange-600 mr-3 mt-0.5 shrink-0">
                           <Check className="w-5 h-5" />
                         </span>
                         <span>{feature}</span>
@@ -453,12 +456,12 @@ export default function MembershipPricing() {
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => handleSelectPlan(tier)}
+                      onClick={() => handleSelectPlan(plan)}
                       disabled={isLoading || isCheckingSubscription || isCurrentPlan}
                       className={`w-full px-6 py-3 rounded-md text-base font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
                         isCurrentPlan 
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : tier.buttonStyle
+                          : 'bg-[#9FC93B] hover:bg-[#8AB82F] text-white'
                       } ${isLoading || isCheckingSubscription ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {isCheckingSubscription ? (
@@ -473,7 +476,13 @@ export default function MembershipPricing() {
                         </>
                       ) : (
                         <>
-                          {isCurrentPlan ? 'Current Plan' : tier.buttonText}
+                          {isCurrentPlan 
+                            ? 'Current Plan' 
+                            : hasActiveSubscription
+                              ? 'Change to this Plan'
+                              : isFreePlan
+                                ? 'Get Free Plan'
+                                : 'Select Plan'}
                           {!isCurrentPlan && <ArrowRight className="w-4 h-4" />}
                         </>
                       )}

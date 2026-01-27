@@ -2,6 +2,7 @@ import { GET, POST, PUT } from "@/app/api/lib/client";
 import { baseUrl } from "../../url"; 
 
 const SubscriptionBaseURL = `${baseUrl}/subscription`;
+const SubscriptionPlanBaseURL = `${baseUrl}/subscription-plans`;
 
 export interface SubscriptionData {
   userId?: number;
@@ -47,8 +48,24 @@ export const SUBSCRIPTION_API = {
   
   GET_AVAILABLE_PLANS: async () => {
     try {
-      console.log('🔍 [Subscription API] Fetching plans from:', `${SubscriptionBaseURL}/plans`);
       const response = await GET(`${SubscriptionBaseURL}/plans`);
+      
+      if (response.error) {
+        console.error('❌ [Subscription API] Error fetching plans:', response.message);
+      } else {
+        console.log('✅ [Subscription API] Plans fetched successfully:', response.data?.length || 0, 'plans');
+      }
+      
+      return response;
+    } catch (error: any) {
+      console.error('❌ [Subscription API] Exception fetching plans:', error.message);
+      return { error: true, message: error.message };
+    }
+  },
+
+  GET_SUBSCRIPTION_PLANS: async () => {
+    try {
+      const response = await GET(`${SubscriptionPlanBaseURL}/`);
       
       if (response.error) {
         console.error('❌ [Subscription API] Error fetching plans:', response.message);

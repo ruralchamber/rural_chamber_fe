@@ -1,8 +1,7 @@
-// app/components/learning-hub/subscription/SubscriptionSettings.tsx
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { X, Check, CreditCard, AlertCircle } from 'lucide-react';
+import { X, Check, CreditCard, AlertCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { SUBSCRIPTION_API } from '@/app/api/endpoints/rest-api/subscription/subscription';
@@ -18,6 +17,8 @@ export default function SubscriptionSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [cancelReason, setCancelReason] = useState('');
   const [authError, setAuthError] = useState(false);
+  const [isChangingPlan, setIsChangingPlan] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     checkAuthAndLoadSubscription();
@@ -29,27 +30,17 @@ export default function SubscriptionSettings() {
     const tokenCookie = cookies.get('token');
     if (tokenCookie?.accessToken) {
       token = tokenCookie.accessToken;
-      console.log('✅ Token found in cookie');
     } else if (tokenCookie) {
-      
       token = tokenCookie;
-      console.log('✅ Token found in cookie (string format)');
     }
     
     if (!token && typeof window !== 'undefined') {
       token = localStorage.getItem('accessToken') || 
               localStorage.getItem('access_token') ||
               localStorage.getItem('token');
-      if (token) {
-        console.log('✅ Token found in localStorage');
-      }
     }
     
-    console.log('🔍 Auth Check:');
-    console.log('  - Token exists:', !!token);
-    
     if (!token) {
-      console.log('❌ No token found - showing login prompt');
       setAuthError(true);
       setIsLoading(false);
       return;
@@ -62,39 +53,28 @@ export default function SubscriptionSettings() {
     try {
       setIsLoading(true);
       
-      console.log('📡 Fetching subscription...');
-      
       const response = await SUBSCRIPTION_API.GET_SUBSCRIPTION();
-      
-      console.log('📥 Subscription response:', response);
       
       if (response.error) {
         if (response.message?.includes('401') || 
             response.message?.includes('Unauthorized') ||
             response.message?.includes('Authentication required') ||
             response.status === 401) {
-          console.log('❌ Unauthorized - token may be invalid');
           setAuthError(true);
           toast.error('Session expired. Please login again.');
         } else if (response.message?.includes('404') || 
                    response.message?.includes('not found') ||
                    response.message?.includes('No active subscription')) {
-          console.log('ℹ️ No subscription found for user');
           setSubscription(null);
         } else {
-          console.log('❌ Error:', response.message);
           toast.error(response.message || 'Failed to load subscription');
         }
       } else if (response.data) {
-        console.log('✅ Subscription loaded successfully');
         setSubscription(response.data);
       } else {
-        console.log('ℹ️ No subscription data in response');
         setSubscription(null);
       }
     } catch (error: any) {
-      console.error('💥 Unexpected error:', error);
-      
       if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
         setAuthError(true);
         toast.error('Session expired. Please login again.');
@@ -134,6 +114,8 @@ export default function SubscriptionSettings() {
 
   const handleConfirmCancel = async () => {
     try {
+      setIsCancelling(true);
+      
       const response = await SUBSCRIPTION_API.CANCEL_SUBSCRIPTION(
         cancelReason ? { reason: cancelReason } : undefined
       );
@@ -149,6 +131,8 @@ export default function SubscriptionSettings() {
     } catch (error: any) {
       console.error('Error cancelling subscription:', error);
       toast.error(error.message || 'Failed to cancel subscription');
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -184,12 +168,28 @@ export default function SubscriptionSettings() {
     }
   };
 
-  const handleCloseSuccess = () => {
-    setShowSuccessDialog(false);
+  const handleChangePlan = async () => {
+    try {
+      setIsChangingPlan(true);
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+      
+      if (!userInfo) {
+        toast.error('Please login to change your subscription');
+        router.push('/auth/login');
+        return;
+      }
+
+      router.push('/membership');
+    } catch (error) {
+      console.error('Error changing plan:', error);
+      toast.error('Failed to change subscription plan');
+    } finally {
+      setIsChangingPlan(false);
+    }
   };
 
-  const handleChangeSubscription = () => {
-    router.push('/membership');
+  const handleCloseSuccess = () => {
+    setShowSuccessDialog(false);
   };
 
   const handleLoginRedirect = () => {
@@ -270,10 +270,18 @@ export default function SubscriptionSettings() {
                   </div>
                   {subscription.status === 'active' && (
                     <button 
-                      onClick={handleChangeSubscription}
-                      className="bg-[#9FC93B] hover:bg-[#a8c944] text-white px-8 py-2.5 rounded-lg font-medium transition-colors whitespace-nowrap"
+                      onClick={handleChangePlan}
+                      disabled={isChangingPlan}
+                      className="bg-[#9FC93B] hover:bg-[#a8c944] text-white px-8 py-2.5 rounded-lg font-medium transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
-                      Change Subscription
+                      {isChangingPlan ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        'Change Subscription Plan'
+                      )}
                     </button>
                   )}
                 </div>
@@ -371,15 +379,24 @@ export default function SubscriptionSettings() {
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => setShowCancelDialog(false)}
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-8 py-2.5 rounded-lg font-medium transition-colors"
+                disabled={isCancelling}
+                className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-8 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 No, Keep It
               </button>
               <button
                 onClick={handleConfirmCancel}
-                className="bg-red-600 hover:bg-red-700 text-white px-8 py-2.5 rounded-lg font-medium transition-colors"
+                disabled={isCancelling}
+                className="bg-red-600 hover:bg-red-700 text-white px-8 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Yes, Cancel
+                {isCancelling ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  'Yes, Cancel'
+                )}
               </button>
             </div>
           </div>
@@ -387,7 +404,7 @@ export default function SubscriptionSettings() {
       )}
 
       {showSuccessDialog && (
-        <div className="fixed inset-0 backdrop-blur-sm bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-10 max-w-md w-full shadow-2xl relative">
             <button
               onClick={handleCloseSuccess}
