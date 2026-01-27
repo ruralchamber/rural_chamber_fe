@@ -91,37 +91,35 @@ function RegistrationWizardContent() {
           setCurrentUser(user);
           
           try {
-            const progressResponse = await REGISTRATION_API.GET_PROGRESS(user.id);
-            if (!progressResponse.error && progressResponse.data) {
-              const { registration, currentStep: savedStep, steps } = progressResponse.data;
-              
-              let restoredData = { ...registrationData };
-              steps?.forEach(step => {
-                if (step.stepData) {
-                  restoredData = { ...restoredData, ...step.stepData };
-                }
-              });
-              
-              setRegistrationData(restoredData);
-              
-              if (savedStep && savedStep > 1) {
-                setCurrentStep(savedStep);
-                
-                const emailVerifiedStep = steps?.find(step => 
-                  step.stepNumber === 2 && step.stepData?.emailVerified === true
-                );
-                
-                if (emailVerifiedStep) {
-                  setEmailVerified(true);
-                }
+          const progressResponse = await REGISTRATION_API.GET_PROGRESS(user.id);
+          if (!progressResponse.error && progressResponse.data) {
+            const { registration, currentStep: savedStep, steps } = progressResponse.data;
+            
+            let restoredData = { ...registrationData };
+            steps?.forEach(step => {
+              if (step.data) { // Changed from step.stepData to step.data
+                restoredData = { ...restoredData, ...step.data };
               }
+            });
+            
+            setRegistrationData(restoredData);
+            
+            if (savedStep && savedStep > 1) {
+              setCurrentStep(savedStep);
               
-              setSearchParamsInitialized(true);
-              return;
+              // Check if email is verified from user data
+              const user = await REGISTRATION_API.CHECK_VERIFICATION_STATUS(restoredData.email as string);
+              if (user.data?.emailVerified) {
+                setEmailVerified(true);
+              }
             }
-          } catch (error) {
-            console.warn("Could not restore from backend");
+            
+            setSearchParamsInitialized(true);
+            return;
           }
+        } catch (error) {
+          console.warn("Could not restore from backend");
+        }
           
           const savedRegistrationData = localStorage.getItem("registration_data");
           const savedStep = localStorage.getItem("current_registration_step");
@@ -187,87 +185,115 @@ function RegistrationWizardContent() {
     setRegistrationData((prev) => ({ ...prev, ...updates }));
   };
 
-  const handleInitialRegistration = async (data: {
-    email: string;
-    cellphone: string;
-    firstName: string;
-    lastName: string;
-    password: string;
-  }) => {
-    setIsLoading(true);
-    try {
-      const response = await REGISTRATION_API.START_REGISTRATION({
-        fullName: `${data.firstName} ${data.lastName}`,
-        email: data.email,
-        password: data.password,
-        role: "customer",
-        cellphone: data.cellphone,
-      });
+ const handleInitialRegistration = async (data: {
+  email: string;
+  cellphone: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+}) => {
+  setIsLoading(true);
+  try {
+    const response = await REGISTRATION_API.START_REGISTRATION({
+      fullName: `${data.firstName} ${data.lastName}`,
+      email: data.email,
+      password: data.password,
+      role: "customer",
+      cellphone: data.cellphone,
+    });
 
-      if (response.error) {
-        if (response.message?.includes("already registered and verified")) {
-          toast.info("This email is already registered. Please login instead.", {
-            duration: 6000,
-            action: {
-              label: "Go to Login",
-              onClick: () => router.push("/auth/login"),
-            },
-          });
-          return;
-        }
-
-        if (response.message) {
-          toast.info(response.message, { duration: 5000 });
-        } else {
-          toast.info("Registration failed. Please try again.", { duration: 5000 });
-        }
+    if (response.error) {
+      // Handle structured error response
+      if (response.status === 409) {
+        toast.info(response.message || "You already have an account.", {
+          duration: 6000,
+          action: {
+            label: "Go to Login",
+            onClick: () => router.push("/auth/login"),
+          },
+        });
         return;
       }
 
-      const userData = {
-        id: response.data.user.id,
-        email: response.data.user.email,
-        fullName: response.data.user.fullName,
-      };
+      if (response.message) {
+        toast.info(response.message, { duration: 5000 });
+      } else {
+        toast.info("Registration failed. Please try again.", { duration: 5000 });
+      }
+      return;
+    }
 
-      localStorage.setItem("user_data", JSON.stringify(userData));
-      localStorage.setItem("access_token", response.data.tokenData.accessToken);
-      localStorage.setItem(
-        "refresh_token",
-        response.data.tokenData.refreshToken
-      );
-      localStorage.setItem("registration_in_progress", "true");
-      localStorage.setItem("current_registration_step", "2");
-      
-      const stepData = {
-        email: data.email,
-        cellphone: data.cellphone,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        password: data.password
-      };
-      localStorage.setItem("registration_data", JSON.stringify(stepData));
+    const userData = {
+      id: response.data.user.id,
+      email: response.data.user.email,
+      fullName: response.data.user.fullName,
+    };
 
-      setCurrentUser(userData);
-      updateRegistrationData(data);
-      setCurrentStep(2);
+    localStorage.setItem("user_data", JSON.stringify(userData));
+    localStorage.setItem("access_token", response.data.tokenData.accessToken);
+    localStorage.setItem(
+      "refresh_token",
+      response.data.tokenData.refreshToken
+    );
+    localStorage.setItem("registration_in_progress", "true");
+    
+    // Set current step based on response
+    const currentStep = response.data.currentStep || 2;
+    localStorage.setItem("current_registration_step", currentStep.toString());
+    
+    const stepData = {
+      email: data.email,
+      cellphone: data.cellphone,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      password: data.password
+    };
+    localStorage.setItem("registration_data", JSON.stringify(stepData));
 
+    setCurrentUser(userData);
+    updateRegistrationData(data);
+    
+    // Set the appropriate step
+    setCurrentStep(currentStep);
+
+    // Show appropriate message based on user status
+    if (response.data.status === "new") {
       toast.success(
         "Registration successful! Please check your email to verify your account.",
         { duration: 6000 }
       );
-    } catch (error: any) {
-      console.error("Registration error:", error);
-      
-      if (error.response?.data?.message) {
-        toast.info(error.response.data.message, { duration: 5000 });
-      } else if (error.message) {
-        toast.info("Unable to complete registration. Please try again.", { duration: 5000 });
-      }
-    } finally {
-      setIsLoading(false);
+    } else if (response.data.status === "unverified") {
+      toast.info(
+        "Welcome back! Please verify your email to continue.",
+        { duration: 5000 }
+      );
+    } else if (response.data.status === "verified_incomplete") {
+      toast.success(
+        `Welcome back! Continuing registration from step ${currentStep}.`,
+        { duration: 5000 }
+      );
     }
-  };
+  } catch (error: any) {
+    console.error("Registration error:", error);
+    
+    // Handle error with structured response
+    if (error.response?.status === 409) {
+      toast.info(error.response.data?.message || "You already have an account.", {
+        duration: 6000,
+        action: {
+          label: "Go to Login",
+          onClick: () => router.push("/auth/login"),
+        },
+      });
+    } else if (error.response?.data?.message) {
+      toast.info(error.response.data.message, { duration: 5000 });
+    } else if (error.message) {
+      toast.info("Unable to complete registration. Please try again.", { duration: 5000 });
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const saveStepToBackend = async (
     stepNumber: number,
