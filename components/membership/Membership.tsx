@@ -7,6 +7,7 @@ import { Check, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SUBSCRIPTION_API, SubscriptionType } from "@/app/api/endpoints/rest-api/subscription/subscription";
+import { PAYMENT_API } from "@/app/api/endpoints/rest-api/payment/payment";
 
 interface PricingTier {
   id: string;
@@ -138,29 +139,132 @@ export default function MembershipPricing() {
     }
   };
 
-const handleSelectPlan = async (plan: PricingTier) => {
-  const token = localStorage.getItem('accessToken') || 
-                localStorage.getItem('access_token') ||
-                localStorage.getItem('token');
-  
-  if (!token) {
-    toast.error('Please login to subscribe');
-    sessionStorage.setItem('redirectAfterLogin', '/membership');
-    router.push('/auth/login');
-    return;
-  }
+  const proceedWithPayment = async (plan: PricingTier, amount: number) => {
+    try {
+      const userData = localStorage.getItem('userInfo') || localStorage.getItem('user_data');
+      let userInfo = { email: '', firstName: '', lastName: '', id: 0 };
+      
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          userInfo = {
+            email: parsedUser.email || '',
+            firstName: parsedUser.firstName || parsedUser.fullName?.split(' ')[0] || '',
+            lastName: parsedUser.lastName || parsedUser.fullName?.split(' ').slice(1).join(' ') || '',
+            id: parsedUser.id || 0
+          };
+        } catch (e) {
+          console.error('Error parsing user data:', e);
+        }
+      }
 
-  setIsLoading(true);
+      const paymentData = {
+        email: userInfo.email,
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        membershipType: plan.membershipType,
+        billingFrequency: billingCycle,
+        amount: amount,
+        registrationId: currentSubscription?.registrationId || userInfo.id || 0
+      };
 
-  try {
-    const amount = billingCycle === "monthly" ? plan.monthlyAmount : plan.annualAmount;
-    const isFreePlan = plan.membershipType === "free";
+      sessionStorage.setItem('pendingSubscription', JSON.stringify({
+        plan: plan.membershipType,
+        billingCycle: billingCycle,
+        amount: amount,
+        planName: plan.name,
+        isUpgrade: currentSubscription?.subscriptionType !== "free"
+      }));
+      
+      const paymentResponse = await PAYMENT_API.INITIALIZE_PAYMENT(paymentData);
+      
+      if (paymentResponse.error) {
+        let errorMessage = paymentResponse.message || 'Failed to initialize payment';
+        
+        if (errorMessage.includes('Plan not found')) {
+          errorMessage = 'This membership plan is not yet available. It will be implemented soon. Please select a different plan or try again later.';
+        } else if (errorMessage.includes('Payment gateway error')) {
+          errorMessage = 'Payment gateway error. Please try again or contact support.';
+        } else if (errorMessage.includes('Billing frequency mismatch')) {
+          errorMessage = 'Billing frequency mismatch. Your registration was created with a different billing cycle. Please select the same billing frequency or contact support.';
+        } else if (errorMessage.includes('Internal server error') && paymentResponse.error) {
+          if (typeof paymentResponse.error === 'string') {
+            if (paymentResponse.error.includes('Billing frequency mismatch')) {
+              errorMessage = 'Billing frequency mismatch. Your registration was created with a different billing cycle.';
+            } else if (paymentResponse.error.includes('Plan not found')) {
+              errorMessage = 'This membership plan is not yet available. It will be implemented soon.';
+            } else {
+              errorMessage = paymentResponse.error;
+            }
+          }
+        }
+        
+        toast.error(errorMessage, { duration: 6000 });
+        setIsLoading(false);
+        return;
+      }
+
+      if (paymentResponse.data?.authorization_url) {
+        window.location.href = paymentResponse.data.authorization_url;
+      } else {
+        toast.error('Payment initialization failed - no payment URL received');
+        setIsLoading(false);
+      }
+
+    } catch (error: any) {
+      console.error('Error in proceedWithPayment:', error);
+      
+      let errorMessage = 'Failed to initialize payment';
+      
+      if (error.response?.data?.error) {
+        const errorData = error.response.data.error;
+        if (typeof errorData === 'string') {
+          if (errorData.includes('Billing frequency mismatch')) {
+            errorMessage = 'Billing frequency mismatch. Your registration was created with a different billing cycle. Please select the same billing frequency or contact support.';
+          } else if (errorData.includes('Plan not found')) {
+            errorMessage = 'This membership plan is not yet available. It will be implemented soon.';
+          } else {
+            errorMessage = errorData;
+          }
+        }
+      } else if (error.response?.data?.message) {
+        if (error.response.data.message.includes('Billing frequency mismatch')) {
+          errorMessage = 'Billing frequency mismatch. Please select the correct billing frequency.';
+        } else {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      toast.error(errorMessage, { duration: 6000 });
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectPlan = async (plan: PricingTier) => {
+    const token = localStorage.getItem('accessToken') || 
+                  localStorage.getItem('access_token') ||
+                  localStorage.getItem('token');
     
-    const hasActiveSubscription = currentSubscription && 
-                                 (currentSubscription.status === 'active' || 
-                                  currentSubscription.status === 'paused');
+    if (!token) {
+      toast.error('Please login to subscribe');
+      sessionStorage.setItem('redirectAfterLogin', '/membership');
+      router.push('/auth/login');
+      return;
+    }
 
-    if (!hasActiveSubscription && !currentSubscription) {
+    setIsLoading(true);
+
+    try {
+      const amount = billingCycle === "monthly" ? plan.monthlyAmount : plan.annualAmount;
+      const isFreePlan = plan.membershipType === "free";
+      
+      const isCurrentPlan = currentSubscription?.subscriptionType === plan.membershipType;
+      if (isCurrentPlan) {
+        toast.info(`You're already on the ${plan.name} plan`);
+        setIsLoading(false);
+        return;
+      }
+
       if (isFreePlan) {
         const updateResponse = await SUBSCRIPTION_API.UPDATE_SUBSCRIPTION_PLAN({
           newSubscriptionType: "free",
@@ -168,107 +272,183 @@ const handleSelectPlan = async (plan: PricingTier) => {
         });
         
         if (!updateResponse.error) {
-          toast.success(`Successfully subscribed to ${plan.name} plan!`);
+          toast.success(`Successfully switched to ${plan.name} plan!`);
           setCurrentSubscription(updateResponse.data);
+          checkCurrentSubscription();
         } else {
-          toast.error('Failed to subscribe to free plan: ' + updateResponse.message);
+          toast.error('Failed to switch plan: ' + (updateResponse.message || 'Unknown error'));
         }
-      } else {
+        setIsLoading(false);
+        return;
+      }
+
+      const userData = localStorage.getItem('userInfo') || localStorage.getItem('user_data');
+      let userInfo = { email: '', firstName: '', lastName: '', id: 0 };
+      
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          userInfo = {
+            email: parsedUser.email || '',
+            firstName: parsedUser.firstName || parsedUser.fullName?.split(' ')[0] || '',
+            lastName: parsedUser.lastName || parsedUser.fullName?.split(' ').slice(1).join(' ') || '',
+            id: parsedUser.id || 0
+          };
+        } catch (e) {
+          console.error('Error parsing user data:', e);
+        }
+      }
+
+      if (!currentSubscription?.registrationId && !userInfo.id) {
         toast.error('Please complete your registration first before subscribing to a paid plan.');
         router.push('/auth/register');
+        setIsLoading(false);
+        return;
       }
-      return;
-    }
 
-    const isCurrentPlan = currentSubscription?.subscriptionType === plan.membershipType;
-    if (isCurrentPlan) {
-      toast.info(`You're already on the ${plan.name} plan`);
-      return;
-    }
-
-    const isCurrentPlanFree = currentSubscription?.subscriptionType === "free";
-    const isCurrentPlanPaid = currentSubscription?.subscriptionType !== "free" && currentSubscription?.amount > 0;
-    
-    if (isCurrentPlanFree && !isFreePlan) {
-      // Free → Paid: Redirect to payment
-      const subscriptionData = {
-        subscriptionType: plan.membershipType,
-        billingFrequency: billingCycle,
-        amount,
-        planName: plan.name,
-        userId: currentSubscription?.userId,
-        registrationId: currentSubscription?.registrationId
-      };
-
-      sessionStorage.setItem('pendingSubscription', JSON.stringify(subscriptionData));
-      router.push(`/payment?plan=${plan.membershipType}&billing=${billingCycle}&upgrade=true`);
-      return;
-    }
-
-    if (isCurrentPlanPaid && !isFreePlan) {
-      const updateResponse = await SUBSCRIPTION_API.UPDATE_SUBSCRIPTION_PLAN({
-        newSubscriptionType: plan.membershipType,
-        newBillingFrequency: billingCycle
-      });
-      
-      if (!updateResponse.error) {
-        toast.success(`Successfully changed to ${plan.name} plan!`);
-        setCurrentSubscription(updateResponse.data);
-        
-        const oldAmount = currentSubscription?.amount || 0;
-        const newAmount = updateResponse.data.amount;
-        
-        if (newAmount > oldAmount) {
-          const difference = newAmount - oldAmount;
-          toast.info(`You'll be charged R${difference.toFixed(2)} extra on your next billing cycle.`);
-        } else if (newAmount < oldAmount) {
-          const difference = oldAmount - newAmount;
-          toast.info(`You'll save R${difference.toFixed(2)} on your next billing cycle.`);
+      let registrationBillingFrequency = "annual";
+      try {
+        const registrationDataStr = localStorage.getItem('registration_data');
+        if (registrationDataStr) {
+          const registrationData = JSON.parse(registrationDataStr);
+          if (registrationData.billingFrequency) {
+            registrationBillingFrequency = registrationData.billingFrequency;
+          }
         }
-      } else {
-        toast.error('Failed to change plan: ' + updateResponse.message);
+      } catch (e) {
+        console.error('Error parsing registration data:', e);
       }
-      return;
-    }
 
-    if (isCurrentPlanPaid && isFreePlan) {
+      if (registrationBillingFrequency !== billingCycle) {
+        toast.custom((t) => (
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Billing Frequency Change
+            </h3>
+            <p className="text-gray-600 mb-4">
+              You originally selected <span className="font-bold">{registrationBillingFrequency}</span> billing during registration, 
+              but are now selecting <span className="font-bold">{billingCycle}</span> billing. 
+              Do you want to proceed with {billingCycle} billing?
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  toast.dismiss(t);
+                  proceedWithPayment(plan, amount);
+                }}
+                className="flex-1 bg-[#9FC93B] hover:bg-[#8AB82F] text-white py-2 px-4 rounded-md font-medium"
+              >
+                Yes, proceed
+              </button>
+              <button
+                onClick={() => {
+                  toast.dismiss(t);
+                  setIsLoading(false);
+                }}
+                className="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-700 py-2 px-4 rounded-md font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ), {
+          duration: 10000,
+        });
+        return;
+      }
+
+      proceedWithPayment(plan, amount);
+
+    } catch (error: any) {
+      console.error('Error selecting plan:', error);
+      
+      let errorMessage = error.message || 'Failed to process subscription';
+      
+      if (error.message?.includes('408') || error.message?.includes('timeout')) {
+        errorMessage = 'Request timeout. The server is taking too long to respond. Please try again.';
+      } else if (error.message?.includes('Plan not found')) {
+        errorMessage = 'This membership plan is not yet available. It will be implemented soon. Please select a different plan or try again later.';
+      }
+      
+      toast.error(errorMessage);
+      setIsLoading(false);
+    }
+  };
+
+  const handlePaymentSuccess = async (reference: string) => {
+    try {
+      setIsLoading(true);
+      
+      const verificationResponse = await PAYMENT_API.VERIFY_PAYMENT(reference);
+      
+      if (verificationResponse.error) {
+        let errorMessage = verificationResponse.message || 'Payment verification failed';
+        
+        if (verificationResponse.error && typeof verificationResponse.error === 'string') {
+          if (verificationResponse.error.includes('Billing frequency mismatch')) {
+            errorMessage = 'Payment failed: Billing frequency mismatch. Please contact support.';
+          }
+        }
+        
+        toast.error(errorMessage);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!verificationResponse.data || verificationResponse.data.status !== 'success') {
+        toast.error('Payment verification failed');
+        setIsLoading(false);
+        return;
+      }
+
+      const pendingSubscriptionStr = sessionStorage.getItem('pendingSubscription');
+      if (!pendingSubscriptionStr) {
+        toast.error('No pending subscription found');
+        setIsLoading(false);
+        return;
+      }
+
+      const pendingSubscription = JSON.parse(pendingSubscriptionStr);
+      
       const updateResponse = await SUBSCRIPTION_API.UPDATE_SUBSCRIPTION_PLAN({
-        newSubscriptionType: "free",
-        newBillingFrequency: "annual"
+        newSubscriptionType: pendingSubscription.plan,
+        newBillingFrequency: pendingSubscription.billingCycle
       });
       
-      if (!updateResponse.error) {
-        toast.success(`Successfully downgraded to ${plan.name} plan!`);
-        setCurrentSubscription(updateResponse.data);
-        toast.info('A pro-rated refund will be issued for your remaining subscription period.');
-      } else {
-        toast.error('Failed to change plan: ' + updateResponse.message);
+      if (updateResponse.error) {
+        let errorMessage = updateResponse.message || 'Failed to update subscription after payment';
+        
+        if (updateResponse.error && typeof updateResponse.error === 'string') {
+          if (updateResponse.error.includes('Billing frequency mismatch')) {
+            errorMessage = 'Failed to update subscription: Billing frequency mismatch with your registration. Please contact support.';
+          }
+        }
+        
+        toast.error(errorMessage);
+        setIsLoading(false);
+        return;
       }
-      return;
-    }
 
-    toast.error('Invalid subscription change request');
-    
-  } catch (error: any) {
-    console.error('Error selecting plan:', error);
-    
-    if (error.message?.includes('408') || error.message?.includes('timeout')) {
-      toast.error('Request timeout. The server is taking too long to respond. Please try again.');
-    } else {
-      toast.error(error.message || 'Failed to process subscription');
+      if (pendingSubscription.isUpgrade) {
+        toast.success(`Payment successful! You have been upgraded to the ${pendingSubscription.planName} plan.`);
+      } else {
+        toast.success(`Payment successful! Your subscription has been changed to the ${pendingSubscription.planName} plan.`);
+      }
+      
+      await checkCurrentSubscription();
+      
+      sessionStorage.removeItem('pendingSubscription');
+      
+      const url = new URL(window.location.href);
+      url.searchParams.delete('reference');
+      window.history.replaceState({}, '', url.toString());
+      
+    } catch (error: any) {
+      console.error('Error handling payment success:', error);
+      toast.error('Failed to process payment success: ' + error.message);
+    } finally {
+      setIsLoading(false);
     }
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-  const handlePaymentSuccess = (reference: string) => {
-    toast.success('Payment successful! Your subscription has been activated.');
-    checkCurrentSubscription();
-    
-    const url = new URL(window.location.href);
-    url.searchParams.delete('reference');
-    window.history.replaceState({}, '', url.toString());
   };
 
   const containerVariants = {

@@ -19,7 +19,6 @@ export const EmailVerificationStep = ({
   const [isResending, setIsResending] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
-  // Check email verification status with the backend
   const checkVerificationStatus = async (): Promise<boolean> => {
     try {
       const response = await REGISTRATION_API.CHECK_VERIFICATION_STATUS(email);
@@ -30,15 +29,13 @@ export const EmailVerificationStep = ({
 
       const { emailVerified, user } = response.data;
       
-      // Update local storage if user data is returned
       if (user) {
         localStorage.setItem('user_data', JSON.stringify(user));
       }
       
       return emailVerified;
-    } catch (error) {
-      console.error('Error checking verification status:', error);
-      return false;
+    } catch (error: any) {
+      throw error;
     }
   };
 
@@ -49,12 +46,13 @@ export const EmailVerificationStep = ({
       
       if (verified) {
         toast.success('Email verified successfully!');
-        onVerified(); // This will move to the next step
+        onVerified();
       } else {
         toast.error('Email not verified yet. Please check your email and click the verification link.');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to check verification status. Please try again.');
+      let errorMessage = error.message || 'Failed to check verification status. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setIsChecking(false);
     }
@@ -62,17 +60,17 @@ export const EmailVerificationStep = ({
 
   const handleResendEmail = async () => {
     setIsResending(true);
-    setCountdown(30); // 30 second cooldown
+    setCountdown(30);
     try {
       await onResendEmail(email);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to resend verification email. Please try again.');
+      let errorMessage = error.message || 'Failed to resend verification email. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setIsResending(false);
     }
   };
 
-  // Countdown timer for resend cooldown
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);

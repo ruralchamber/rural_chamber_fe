@@ -662,13 +662,13 @@ export default function DonationSuccessPage() {
                   Download Receipt (PDF)
                 </button>
                 
-                <button
+                {/* <button
                   onClick={handleSendReceipt}
                   className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200"
                 >
                   <Mail className="h-5 w-5" />
                   Email Receipt
-                </button>
+                </button> */}
                 
                 <button
                   onClick={handleShare}

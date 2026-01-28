@@ -7,12 +7,17 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { EVENTS_API, EventResponse } from "@/app/api/endpoints/rest-api/events/events";
 import { useToast } from "@/components/common/Toast";
+import EventModalPublic from "@/components/Events/EventsModal";
 
 export default function EventsPage() {
   const router = useRouter();
   const { showToast, ToastContainer } = useToast();
   const [events, setEvents] = useState<EventResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Modal states
+  const [selectedEvent, setSelectedEvent] = useState<EventResponse | null>(null);
+  const [showEventModal, setShowEventModal] = useState(false);
 
   useEffect(() => {
     fetchPublicEvents();
@@ -26,8 +31,12 @@ export default function EventsPage() {
       if (response.error) {
         showToast(response.message || "Failed to load events", 'error');
       } else {
+        // Only show visible upcoming events that are available to free users
         const publicEvents = (response.data || []).filter(
-          (event) => event.isVisible && event.status === "upcoming"
+          (event) => 
+            event.isVisible && 
+            event.status === "upcoming" &&
+            (event.subscriptionTiers?.includes('free') || false) // Only show free events
         );
         setEvents(publicEvents);
       }
@@ -43,13 +52,46 @@ export default function EventsPage() {
     router.push("/membership");
   };
 
-  const handleEventClick = (eventId: number) => {
-    router.push(`/events/${eventId}`);
+  const handleLogin = () => {
+    router.push("/auth/login");
   };
 
+  const handleSignup = () => {
+    router.push("/auth/signup");
+  };
+
+  const handleEventClick = (event: EventResponse) => {
+    setSelectedEvent(event);
+    setShowEventModal(true);
+  };
+
+  const handleJoinNow = () => {
+    if (selectedEvent?.subscriptionTiers?.includes('free')) {
+      // For free events, go to login/signup
+      router.push("/auth/login");
+    } else {
+      // For members-only events, go to membership
+      router.push("/membership");
+    }
+    setShowEventModal(false);
+  };
+
+  // Sort events by date (most recent first)
+  const sortedEvents = [...events].sort((a, b) => {
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
+  });
+
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <ToastContainer />
+      
+      {/* Event Modal for Public Users */}
+      <EventModalPublic
+        event={selectedEvent}
+        isOpen={showEventModal}
+        onClose={() => setShowEventModal(false)}
+        onJoinNow={handleJoinNow}
+      />
       
       <HeroSection
         backgroundImage="/services/hero.png"
@@ -68,8 +110,9 @@ export default function EventsPage() {
                   <div className="h-8 w-8 bg-white rounded-full"></div>
                 </div>
               </div>
+              <p className="ml-4 text-gray-600">Loading events...</p>
             </div>
-          ) : events.length === 0 ? (
+          ) : sortedEvents.length === 0 ? (
             <div className="text-center py-20">
               <div className="mb-6">
                 <div className="w-24 h-24 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
@@ -79,25 +122,44 @@ export default function EventsPage() {
                 </div>
               </div>
               <h2 className="text-2xl font-bold text-[#01311B] mb-4">
-                No Events Available Yet
+                No Public Events Available
               </h2>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                Stay tuned! Exciting events are coming soon to support and connect our rural business community.
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                There are currently no upcoming public events. Check back soon or join as a member to access exclusive events.
               </p>
-              <button
-                onClick={handleBecomeMember}
-                className="px-8 py-3 bg-[#9FC93B] text-white rounded-lg hover:bg-[#8AB82F] font-medium transition-colors"
-              >
-                Become a Member
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  onClick={handleBecomeMember}
+                  className="px-6 py-3 bg-gradient-to-r from-[#01311B] to-[#024d2f] text-white rounded-lg hover:opacity-90 font-medium transition-colors"
+                >
+                  Explore Membership
+                </button>
+                <button
+                  onClick={handleLogin}
+                  className="px-6 py-3 bg-white border border-[#9FC93B] text-[#9FC93B] rounded-lg hover:bg-green-50 font-medium transition-colors"
+                >
+                  Member Login
+                </button>
+              </div>
             </div>
           ) : (
             <>
-              <h2 className="text-center text-[#01311B] mb-10 text-2xl font-semibold">
-                Upcoming Events - Free for Everyone
-              </h2>
-              <div className="grid md:grid-cols-2 gap-10">
-                {events.map((event) => (
+              <div className="text-center mb-10">
+                <h2 className="text-3xl font-bold text-[#01311B] mb-3">
+                  Upcoming Public Events
+                </h2>
+                <p className="text-gray-600 max-w-2xl mx-auto">
+                  Free events open to everyone. Click on any event to view details and learn more.
+                </p>
+                <div className="mt-4 flex flex-wrap justify-center gap-3">
+                  <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                    {sortedEvents.length} Event{sortedEvents.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-8">
+                {sortedEvents.map((event) => (
                   <EventCard
                     key={event.id}
                     month={event.month}
@@ -105,23 +167,67 @@ export default function EventsPage() {
                     image={event.image}
                     title={event.title}
                     description={event.description}
-                    onClick={() => handleEventClick(event.id)}
+                    onClick={() => handleEventClick(event)}
+                    showReadMore={true}
+                    maxDescriptionLength={100}
                   />
                 ))}
               </div>
               
-              <div className="mt-12 text-center bg-linear-to-r from-green-50 to-blue-50 rounded-2xl p-8">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Want Access to Premium Events?
-                </h3>
-                <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
-                  Join as a member to unlock exclusive events, networking opportunities, and member-only benefits designed to grow your rural business.
+              {/* Stats and CTA */}
+              <div className="mt-12 grid md:grid-cols-2 gap-8">
+                {/* Stats Card */}
+                <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Event Statistics</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                    
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Total Attendees</span>
+                      <span className="font-bold text-[#01311B]">
+                        {sortedEvents.reduce((total, event) => total + (event.attendees || 0), 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* CTA Card */}
+                <div className="bg-gradient-to-r from-[#01311B] to-[#024d2f] text-white rounded-2xl p-6">
+                  <h3 className="text-lg font-bold mb-3">Want More Events?</h3>
+                  <p className="text-green-100 mb-4">
+                    Join as a member to unlock exclusive events, premium content, and networking opportunities.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={handleBecomeMember}
+                      className="px-5 py-2.5 bg-white text-[#01311B] rounded-lg hover:bg-gray-100 font-medium transition-colors"
+                    >
+                      View Membership Plans
+                    </button>
+                    <button
+                      onClick={handleLogin}
+                      className="px-5 py-2.5 bg-transparent border border-white text-white rounded-lg hover:bg-white/10 font-medium transition-colors"
+                    >
+                      Existing Member Login
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Bottom CTA */}
+              <div className="mt-8 text-center">
+                <p className="text-gray-600 mb-4">
+                  Not sure which membership is right for you?
                 </p>
                 <button
-                  onClick={handleBecomeMember}
-                  className="px-8 py-3 bg-[#9FC93B] text-white rounded-lg hover:bg-[#8AB82F] font-medium transition-colors shadow-md hover:shadow-lg"
+                  onClick={() => router.push('/membership/compare')}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#9FC93B] text-white rounded-lg hover:bg-[#8AB82F] font-medium transition-colors shadow-md hover:shadow-lg"
                 >
-                  Explore Membership Plans
+                  Compare Membership Plans
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
               </div>
             </>
@@ -132,7 +238,7 @@ export default function EventsPage() {
       <CTAParallaxSection
         backgroundImage="/services/money.png"
         title="Become a member today and help build thriving rural communities!"
-        buttonText="Become a Member"
+        buttonText="Explore Membership"
         onButtonClick={handleBecomeMember}
       />
     </div>

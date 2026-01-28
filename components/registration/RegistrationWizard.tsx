@@ -91,35 +91,46 @@ function RegistrationWizardContent() {
           setCurrentUser(user);
           
           try {
-          const progressResponse = await REGISTRATION_API.GET_PROGRESS(user.id);
-          if (!progressResponse.error && progressResponse.data) {
-            const { registration, currentStep: savedStep, steps } = progressResponse.data;
-            
-            let restoredData = { ...registrationData };
-            steps?.forEach(step => {
-              if (step.data) { // Changed from step.stepData to step.data
-                restoredData = { ...restoredData, ...step.data };
-              }
-            });
-            
-            setRegistrationData(restoredData);
-            
-            if (savedStep && savedStep > 1) {
-              setCurrentStep(savedStep);
+            const progressResponse = await REGISTRATION_API.GET_PROGRESS(user.id);
+            if (!progressResponse.error && progressResponse.data) {
+              const { registration, currentStep: savedStep, steps } = progressResponse.data;
               
-              // Check if email is verified from user data
-              const user = await REGISTRATION_API.CHECK_VERIFICATION_STATUS(restoredData.email as string);
-              if (user.data?.emailVerified) {
-                setEmailVerified(true);
+              let restoredData = { ...registrationData };
+              
+              if (registration) {
+                restoredData = {
+                  ...restoredData,
+                  ...registration,
+                  email: registration.email || user.email || "",
+                };
               }
+              
+              steps?.forEach(step => {
+                if (step.data) {
+                  restoredData = { ...restoredData, ...step.data };
+                }
+              });
+              
+              setRegistrationData(restoredData);
+              
+              if (savedStep && savedStep > 1) {
+                setCurrentStep(savedStep);
+                
+                const emailVerifiedStep = steps?.find(step => 
+                  step.stepNumber === 2 && step.stepData?.emailVerified === true
+                );
+                
+                if (emailVerifiedStep) {
+                  setEmailVerified(true);
+                }
+              }
+              
+              setSearchParamsInitialized(true);
+              return;
             }
-            
-            setSearchParamsInitialized(true);
-            return;
+          } catch (error) {
+            console.warn("Could not restore from backend");
           }
-        } catch (error) {
-          console.warn("Could not restore from backend");
-        }
           
           const savedRegistrationData = localStorage.getItem("registration_data");
           const savedStep = localStorage.getItem("current_registration_step");
@@ -203,43 +214,40 @@ function RegistrationWizardContent() {
     });
 
     if (response.error) {
-      // Handle structured error response
-      if (response.status === 409) {
-        toast.info(response.message || "You already have an account.", {
+      let errorMessage = response.message || "Registration failed. Please try again.";
+      
+      if (response.status === 409 || errorMessage.includes("already exists") || errorMessage.includes("already completed")) {
+        toast.error("User already exists. Please login.", {
           duration: 6000,
           action: {
             label: "Go to Login",
-            onClick: () => router.push("/auth/login"),
+            onClick: () => {
+              router.push("/auth/login");
+            },
           },
         });
         return;
       }
-
-      if (response.message) {
-        toast.info(response.message, { duration: 5000 });
-      } else {
-        toast.info("Registration failed. Please try again.", { duration: 5000 });
-      }
+      
+      toast.error(errorMessage, { duration: 6000 });
       return;
     }
 
+    const { user, tokenData, resumeStep, isNewUser } = response.data;
+
     const userData = {
-      id: response.data.user.id,
-      email: response.data.user.email,
-      fullName: response.data.user.fullName,
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
     };
 
     localStorage.setItem("user_data", JSON.stringify(userData));
-    localStorage.setItem("access_token", response.data.tokenData.accessToken);
-    localStorage.setItem(
-      "refresh_token",
-      response.data.tokenData.refreshToken
-    );
+    localStorage.setItem("access_token", tokenData.accessToken);
+    localStorage.setItem("refresh_token", tokenData.refreshToken);
     localStorage.setItem("registration_in_progress", "true");
     
-    // Set current step based on response
-    const currentStep = response.data.currentStep || 2;
-    localStorage.setItem("current_registration_step", currentStep.toString());
+    const startStep = resumeStep || (isNewUser ? 2 : 1);
+    localStorage.setItem("current_registration_step", startStep.toString());
     
     const stepData = {
       email: data.email,
@@ -252,44 +260,38 @@ function RegistrationWizardContent() {
 
     setCurrentUser(userData);
     updateRegistrationData(data);
-    
-    // Set the appropriate step
-    setCurrentStep(currentStep);
+    setCurrentStep(startStep);
 
-    // Show appropriate message based on user status
-    if (response.data.status === "new") {
+    if (isNewUser) {
       toast.success(
-        "Registration successful! Please check your email to verify your account.",
+        "Registration started! Please check your email to verify your account.",
         { duration: 6000 }
       );
-    } else if (response.data.status === "unverified") {
-      toast.info(
-        "Welcome back! Please verify your email to continue.",
-        { duration: 5000 }
-      );
-    } else if (response.data.status === "verified_incomplete") {
+    } else {
       toast.success(
-        `Welcome back! Continuing registration from step ${currentStep}.`,
-        { duration: 5000 }
+        "Welcome back! Please continue your registration from where you left off.",
+        { duration: 6000 }
       );
     }
   } catch (error: any) {
     console.error("Registration error:", error);
     
-    // Handle error with structured response
-    if (error.response?.status === 409) {
-      toast.info(error.response.data?.message || "You already have an account.", {
+    let errorMessage = error.response?.data?.message || error.message || "Unable to complete registration.";
+    
+    if (error.response?.status === 409 || errorMessage.includes("already exists") || errorMessage.includes("already completed")) {
+      toast.error("User already exists. Please login.", {
         duration: 6000,
         action: {
           label: "Go to Login",
-          onClick: () => router.push("/auth/login"),
+          onClick: () => {
+            router.push("/auth/login");
+          },
         },
       });
-    } else if (error.response?.data?.message) {
-      toast.info(error.response.data.message, { duration: 5000 });
-    } else if (error.message) {
-      toast.info("Unable to complete registration. Please try again.", { duration: 5000 });
+      return;
     }
+    
+    toast.error(errorMessage, { duration: 5000 });
   } finally {
     setIsLoading(false);
   }
@@ -430,6 +432,14 @@ function RegistrationWizardContent() {
           toast.success(
             "Registration complete! Welcome to Rural Chamber of Commerce!"
           );
+          localStorage.removeItem("registration_in_progress");
+          localStorage.removeItem("registration_data");
+          localStorage.removeItem("current_registration_step");
+          localStorage.removeItem("continue_registration");
+          localStorage.removeItem("email_verified");
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          localStorage.removeItem("user_data");
           router.push("/auth/login");
         }
       }
@@ -457,6 +467,9 @@ function RegistrationWizardContent() {
       localStorage.removeItem("current_registration_step");
       localStorage.removeItem("continue_registration");
       localStorage.removeItem("email_verified");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_data");
 
       toast.success(
         "Registration complete! Welcome to Rural Chamber of Commerce! Please login with your credentials."
@@ -589,7 +602,7 @@ function RegistrationWizardContent() {
           />
         );
       case 7:
-        return registrationData.membershipAmount > 0 ? (
+        return (
           <PaymentStep
             data={{
               email: registrationData.email,
@@ -600,8 +613,20 @@ function RegistrationWizardContent() {
               billingFrequency: registrationData.billingFrequency,
             }}
             onBack={() => setCurrentStep(6)}
+            onSuccess={() => {
+              localStorage.removeItem("registration_in_progress");
+              localStorage.removeItem("registration_data");
+              localStorage.removeItem("current_registration_step");
+              localStorage.removeItem("continue_registration");
+              localStorage.removeItem("email_verified");
+              localStorage.removeItem("access_token");
+              localStorage.removeItem("refresh_token");
+              localStorage.removeItem("user_data");
+              toast.success("Payment completed! Registration finished.");
+              router.push("/auth/login");
+            }}
           />
-        ) : null;
+        );
       default:
         return null;
     }

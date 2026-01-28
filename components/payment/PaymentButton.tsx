@@ -29,13 +29,42 @@ export const PaymentButton = ({ paymentData }: PaymentButtonProps) => {
       const response = await PAYMENT_API.INITIALIZE_PAYMENT(paymentData);
 
       if (response.error) {
-        throw new Error(response.message || 'Failed to initialize payment');
+        
+        let errorMessage = 'Failed to initialize payment';
+        
+        if (response.message) {
+          if (response.message.includes('Plan not found')) {
+            errorMessage = 'This membership plan is not yet available. It will be implemented soon. Please select a different plan or try again later.';
+          } else if (response.message.includes('Payment gateway error')) {
+            errorMessage = 'Payment gateway error. Please try again or contact support.';
+          } else {
+            errorMessage = response.message;
+          }
+        }
+        
+        if (response.error && typeof response.error === 'string') {
+          if (response.error.includes('Plan not found')) {
+            errorMessage = 'This membership plan is not yet available. It will be implemented soon. Please select a different plan or try again later.';
+          } else if (response.error.includes('Payment gateway error')) {
+            errorMessage = 'Payment gateway error. Please try again or contact support.';
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
 
-      // 🔥 REDIRECT TO PAYSTACK (NOT MODAL)
       window.location.href = response.data.authorization_url;
     } catch (error: any) {
-      toast.error(error.message || 'Payment initialization failed');
+      
+      let userFriendlyMessage = error.message || 'Payment initialization failed';
+      
+      if (error.message.includes('Plan not found')) {
+        userFriendlyMessage = 'This membership plan is not yet available. It will be implemented soon. Please select a different plan or try again later.';
+      } else if (error.message.includes('not yet available') || error.message.includes('soon to be')) {
+        userFriendlyMessage = error.message;
+      }
+      
+      toast.error(userFriendlyMessage);
     } finally {
       setLoading(false);
     }
