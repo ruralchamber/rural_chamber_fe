@@ -35,11 +35,7 @@ export async function GET(endPoint: string) {
       }
     }
     
-    return {
-      error: true,
-      message: error.response?.data?.message || error.message || "Request failed",
-      status: error.response?.status
-    };
+    throw error;
   }
 }
 
@@ -62,11 +58,7 @@ export async function POST(endPoint: string, payload: object) {
       }
     }
     
-    return {
-      error: true,
-      message: error.response?.data?.message || error.message || "Request failed",
-      status: error.response?.status
-    };
+    throw error;
   }
 }
 
@@ -87,11 +79,7 @@ export async function PUT(endPoint: string, payload?: object): Promise<any> {
       }
     }
     
-    return {
-      error: true,
-      message: error.response?.data?.message || error.message || "Request failed",
-      status: error.response?.status
-    };
+    throw error;
   }
 }
 
@@ -112,11 +100,7 @@ export async function PATCH(endPoint: string, payload?: object): Promise<any> {
       }
     }
     
-    return {
-      error: true,
-      message: error.response?.data?.message || error.message || "Request failed",
-      status: error.response?.status
-    };
+    throw error;
   }
 }
 
@@ -138,10 +122,6 @@ export async function DELETE(endPoint: string, payload?: object): Promise<any> {
       }
     }
     
-    return {
-      error: true,
-      message: error.response?.data?.message || error.message || "Request failed",
-      status: error.response?.status
-    };
+    throw error;
   }
 }

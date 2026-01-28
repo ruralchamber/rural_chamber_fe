@@ -1,4 +1,3 @@
-// components/auth/AutoTokenSync.tsx
 "use client";
 
 import { useEffect } from 'react';
@@ -10,7 +9,6 @@ export function AutoTokenSync() {
   const pathname = usePathname();
 
   useEffect(() => {
-    
     const syncTokens = () => {
       const oldAccessToken = localStorage.getItem('access_token');
       const oldRefreshToken = localStorage.getItem('refresh_token');
@@ -33,8 +31,13 @@ export function AutoTokenSync() {
       }
 
       if (oldUserData && oldUserData !== newUserInfo) {
-        localStorage.setItem('userInfo', oldUserData);
-        updated = true;
+        try {
+          const parsedUserData = JSON.parse(oldUserData);
+          localStorage.setItem('userInfo', JSON.stringify(parsedUserData));
+          updated = true;
+        } catch (e) {
+          console.error('Failed to parse user data:', e);
+        }
       }
 
       if (newAccessToken && newAccessToken !== oldAccessToken) {
@@ -48,8 +51,13 @@ export function AutoTokenSync() {
       }
 
       if (newUserInfo && newUserInfo !== oldUserData) {
-        localStorage.setItem('user_data', newUserInfo);
-        updated = true;
+        try {
+          const parsedUserInfo = JSON.parse(newUserInfo);
+          localStorage.setItem('user_data', JSON.stringify(parsedUserInfo));
+          updated = true;
+        } catch (e) {
+          console.error('Failed to parse user info:', e);
+        }
       }
 
       if (updated) {
@@ -61,19 +69,26 @@ export function AutoTokenSync() {
       const isAuthenticated = authUtils.isAuthenticated();
       const userData = authUtils.getUserData();
       
+      if (!isAuthenticated) {
+        sessionStorage.removeItem('redirectAfterLogin');
+        return;
+      }
+      
       if (isAuthenticated && userData) {
         const isAdmin = userData.role === 'admin';
         const isOnAdminPage = pathname?.startsWith('/admin');
-        const isOnLoginPage = pathname === '/admin/login';
+        const isOnLoginPage = pathname === '/auth/login' || pathname === '/admin/login';
         const isOnHomePage = pathname === '/';
         
         if (isAdmin && (isOnHomePage || isOnLoginPage)) {
-          console.log('🔄 Admin detected on homepage/login, redirecting to admin dashboard');
           router.push('/admin/dashboard');
         }
         
         if (!isAdmin && isOnAdminPage) {
-          console.log('🚫 Regular user trying to access admin, redirecting to user hub');
+          router.push('/connect-hub');
+        }
+        
+        if (!isAdmin && isOnHomePage) {
           router.push('/connect-hub');
         }
       }

@@ -72,88 +72,138 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessages({});
+  const getErrorMessage = (error: any): string => {
+    if (!error) return 'An unknown error occurred';
+    
+    const errorData = error.response?.data || error;
+    
+    if (errorData.error && typeof errorData.error === 'string') {
+      if (errorData.error.includes('Invalid password')) {
+        return 'Invalid password. Please try again.';
+      }
+      if (errorData.error.includes('Email') && errorData.error.includes('not found')) {
+        return 'Email not found. Please check your email or sign up for an account.';
+      }
+      return errorData.error;
+    }
+    
+    if (errorData.message) {
+      if (errorData.message.includes('Invalid password')) {
+        return 'Invalid password. Please try again.';
+      }
+      if (errorData.message.includes('Email') && errorData.message.includes('not found')) {
+        return 'Email not found. Please check your email or sign up for an account.';
+      }
+      return errorData.message;
+    }
+    
+    if (error.message) {
+      return error.message;
+    }
+    
+    return 'Unable to log in. Please check your credentials and try again.';
+  };
 
-    if (!validateForm()) {
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setMessages({});
+
+  if (!validateForm()) {
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const loginData: IUserLogin = {
+      email: formData.email.trim().toLowerCase(),
+      password: formData.password
+    };
+
+    const response = await AUTH_API.LOGIN_POST(loginData);
+    
+    if (response.error) {
+      if (response.data?.needsToCompleteRegistration) {
+        toast.info("Please complete your registration first.", {
+          duration: 6000,
+          action: {
+            label: "Continue Registration",
+            onClick: () => {
+              localStorage.setItem("user_data", JSON.stringify(response.data.user));
+              localStorage.setItem("registration_in_progress", "true");
+              localStorage.setItem("current_registration_step", 
+                response.data.resumeStep?.toString() || "1"
+              );
+              
+              const registrationData = {
+                email: loginData.email,
+              };
+              localStorage.setItem("registration_data", JSON.stringify(registrationData));
+              
+              router.push("/auth/register");
+            },
+          },
+        });
+        setLoading(false);
+        return;
+      }
+      
+      const errorMessage = getErrorMessage(response);
+      setMessages({ general: errorMessage });
+      toast.error(errorMessage);
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const loginData: IUserLogin = {
-        email: formData.email.trim().toLowerCase(),
-        password: formData.password
-      };
-
-      const response = await AUTH_API.LOGIN_POST(loginData);
+    if (response.success === true && response.data?.accessToken) {
+      const decodedUser = jwtDecode<IDecodedJWT>(response.data.accessToken);
       
-      if (response.success === true && response.data?.accessToken) {
-        const decodedUser = jwtDecode<IDecodedJWT>(response.data.accessToken);
-        
-        authUtils.setAuthData(
-          {
-            ...response.data,
-            expiresAt: response.data.expiresAt instanceof Date 
-              ? response.data.expiresAt.toISOString() 
-              : response.data.expiresAt
-          },
-          {
-            id: decodedUser.id,
-            email: decodedUser.email,
-            fullName: decodedUser.fullName,
-            role: decodedUser.role
-          }
-        );
-        
-        checkAuthStatus();
-        
-        toast.success('Welcome back! Login successful.');
-        
-        if (decodedUser.role === 'admin') {
-          router.push('/admin/dashboard');
-        } else {
-          const redirectUrl = sessionStorage.getItem('redirectAfterLogin') || '/connect-hub';
-          sessionStorage.removeItem('redirectAfterLogin');
-          router.push(redirectUrl);
+      authUtils.setAuthData(
+        {
+          ...response.data,
+          expiresAt: response.data.expiresAt instanceof Date 
+            ? response.data.expiresAt.toISOString() 
+            : response.data.expiresAt
+        },
+        {
+          id: decodedUser.id,
+          email: decodedUser.email,
+          fullName: decodedUser.fullName,
+          role: decodedUser.role
         }
-        
+      );
+      
+      checkAuthStatus();
+      
+      toast.success('Welcome back! Login successful.');
+      
+      localStorage.removeItem("registration_in_progress");
+      localStorage.removeItem("current_registration_step");
+      localStorage.removeItem("registration_data");
+      
+      if (decodedUser.role === 'admin') {
+        sessionStorage.removeItem('redirectAfterLogin');
+        router.push('/admin/dashboard');
       } else {
-        let message = 'Unable to log in. Please check your credentials and try again.';
-        
-        if (typeof response.error === 'string') {
-          message = response.error;
-        } else if (response.message) {
-          message = response.message;
-        }
-        
-        setMessages({ general: message });
-        toast.info(message);
-      }
-    } catch (err: any) {
-      console.error('Login error:', err);
-      
-      let message = 'We could not log you in. Please check your email and password and try again.';
-      
-      if (err.response?.data) {
-        const errorData = err.response.data;
-        if (typeof errorData.error === 'string') {
-          message = errorData.error;
-        } else if (errorData.message) {
-          message = errorData.message;
-        }
-      } else if (err.message) {
-        message = err.message;
+        const redirectUrl = sessionStorage.getItem('redirectAfterLogin') || '/connect-hub';
+        sessionStorage.removeItem('redirectAfterLogin');
+        router.push(redirectUrl);
       }
       
-      setMessages({ general: message });
-      toast.info(message);
-    } finally {
-      setLoading(false);
+    } else {
+      const errorMessage = getErrorMessage(response);
+      setMessages({ general: errorMessage });
+      toast.error(errorMessage);
     }
-  };
+  } catch (err: any) {
+    const errorMessage = getErrorMessage(err);
+    setMessages({ general: errorMessage });
+    toast.error(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+}
+
 
   return (
     <AuthLayout
@@ -167,7 +217,7 @@ const LoginPage: React.FC = () => {
         </p>
 
         {messages.general && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-md text-sm">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
             {messages.general}
           </div>
         )}
@@ -185,11 +235,11 @@ const LoginPage: React.FC = () => {
               onChange={handleInputChange}
               disabled={loading}
               className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] focus:border-transparent text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
-                messages.email ? 'border-blue-500' : 'border-gray-300'
+                messages.email ? 'border-red-500' : 'border-gray-300'
               }`}
             />
             {messages.email && (
-              <p className="text-blue-600 text-xs mt-1">{messages.email}</p>
+              <p className="text-red-600 text-xs mt-1">{messages.email}</p>
             )}
           </div>
 
@@ -206,7 +256,7 @@ const LoginPage: React.FC = () => {
                 onChange={handleInputChange}
                 disabled={loading}
                 className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] focus:border-transparent text-sm pr-12 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  messages.password ? 'border-blue-500' : 'border-gray-300'
+                  messages.password ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
               <button
@@ -219,7 +269,7 @@ const LoginPage: React.FC = () => {
               </button>
             </div>
             {messages.password && (
-              <p className="text-blue-600 text-xs mt-1">{messages.password}</p>
+              <p className="text-red-600 text-xs mt-1">{messages.password}</p>
             )}
           </div>
 
