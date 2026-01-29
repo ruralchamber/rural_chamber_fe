@@ -12,7 +12,7 @@ interface PaymentStepProps {
     firstName: string;
     lastName: string;
     membershipType: string;
-    amount: number;
+    amount: number; 
     billingFrequency: "monthly" | "annual";
   };
   onBack: () => void;
@@ -25,7 +25,6 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [paymentReference, setPaymentReference] = useState<string | null>(null);
 
-  // Check for payment callback
   useEffect(() => {
     const checkPaymentCallback = async () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -49,21 +48,18 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
             setPaymentCompleted(true);
             setPaymentReference(paymentRef);
             
-            // Clear URL parameters
             const newUrl = window.location.pathname;
             window.history.replaceState({}, '', newUrl);
             
-            // Complete registration
             await completeRegistrationAfterPayment();
             
             toast.success("Payment successful! Your membership has been activated.");
             
-            // Redirect after 3 seconds
             setTimeout(() => {
               if (onSuccess) {
                 onSuccess();
               } else {
-                window.location.href = "/client/dashboard";
+                window.location.href = "/registration/success?reference=" + paymentRef;
               }
             }, 3000);
           } else {
@@ -90,7 +86,6 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
         throw new Error("User session expired");
       }
 
-      // Get registration data from localStorage
       const registrationDataStr = localStorage.getItem("registration_data");
       const registrationData = registrationDataStr ? JSON.parse(registrationDataStr) : {};
 
@@ -106,10 +101,8 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
 
       if (completeResponse.error) {
         console.error("Failed to complete registration:", completeResponse.message);
-        // Don't throw error here - payment was successful even if registration completion fails
       }
 
-      // Clean up registration data
       localStorage.removeItem("registration_in_progress");
       localStorage.removeItem("registration_data");
       localStorage.removeItem("current_registration_step");
@@ -118,7 +111,7 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
 
     } catch (error: any) {
       console.error("Error completing registration:", error);
-      // Payment was successful even if registration cleanup fails
+      
     }
   };
 
@@ -131,7 +124,7 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
     setIsProcessing(true);
 
     try {
-      // Get user data from localStorage
+
       const userDataStr = localStorage.getItem("user_data");
       const userData = userDataStr ? JSON.parse(userDataStr) : null;
 
@@ -140,7 +133,6 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
         return;
       }
 
-      // Get registration ID from registration progress
       let registrationId = null;
       let registrationData = null;
       
@@ -159,7 +151,6 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
         return;
       }
 
-      // Verify registration has the selected membership type
       if (registrationData?.membershipType !== data.membershipType) {
         toast.error("Membership selection mismatch. Please go back and reselect your membership.");
         setIsProcessing(false);
@@ -174,7 +165,7 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
 
       const paymentData = {
         email: data.email,
-        amount: data.amount,
+        amount: data.amount, 
         membershipType: data.membershipType,
         billingFrequency: data.billingFrequency,
         firstName: data.firstName,
@@ -182,12 +173,13 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
         registrationId: registrationId,
       };
 
+      console.log('Sending payment data:', paymentData); 
+
       const response = await PAYMENT_API.INITIALIZE_PAYMENT(paymentData);
 
       if (response.error) {
         let errorMessage = response.message || "Payment initialization failed";
         
-        // Handle specific errors
         if (errorMessage.includes("Membership type mismatch")) {
           errorMessage = "Membership selection doesn't match your registration. Please go back and reselect your membership.";
         } else if (errorMessage.includes("Billing frequency mismatch")) {
@@ -202,10 +194,9 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
       }
 
       if (response.data?.authorization_url) {
-        // Save payment reference for verification
+        
         localStorage.setItem("pending_payment_reference", response.data.reference);
         
-        // Redirect to payment page
         window.location.href = response.data.authorization_url;
       } else {
         toast.error("No payment URL received from payment gateway");
@@ -283,7 +274,6 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
         Secure payment to activate your membership
       </p>
 
-      {/* Order Summary */}
       <div className="bg-gray-50 rounded-lg p-6">
         <h3 className="font-semibold text-gray-900 mb-4">Order Summary</h3>
         <div className="space-y-3">
@@ -308,7 +298,6 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
         </div>
       </div>
 
-      {/* Payment Method */}
       <div className="bg-gray-50 rounded-lg p-6">
         <h3 className="font-semibold text-gray-900 mb-4">Payment Method</h3>
         <div className="space-y-3">
@@ -330,10 +319,9 @@ export const PaymentStep = ({ data, onBack, onSuccess }: PaymentStepProps) => {
         </div>
       </div>
 
-      {/* Important Note */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start space-x-2">
-          <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm text-blue-800">
               <strong>Important:</strong> After payment, your subscription will be activated and 
