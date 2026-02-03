@@ -45,44 +45,43 @@ export default function RegistrationSuccessPage() {
     verify();
   }, [reference]);
 
- useEffect(() => {
-  if (countdown === 0 && status === 'success') {
-    
-    const logoutFromBackend = async () => {
-      try {
-        const accessToken = localStorage.getItem('access_token');
-        if (accessToken) {
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout/${accessToken}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-        }
-      } catch (error) {
-        console.error('Error logging out from backend:', error);
-      }
-    };
+  useEffect(() => {
+    if (status === 'success') {
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
 
-    localStorage.removeItem('user_data');
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('continue_registration');
-    localStorage.removeItem('email_verified');
-    localStorage.removeItem('payment_reference');
-    localStorage.removeItem('payment_registration_id');
-    localStorage.removeItem('registration_in_progress');
-    localStorage.removeItem('registration_data');
-    localStorage.removeItem('current_registration_step');
-    
-    logoutFromBackend();
+      return () => clearInterval(timer);
+    }
+  }, [status]);
 
-    router.push('/auth/login');
-  }
-}, [countdown, status, router]);
+  useEffect(() => {
+    if (countdown === 0 && status === 'success') {
+      // Clear all auth data
+      localStorage.removeItem('user_data');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('continue_registration');
+      localStorage.removeItem('email_verified');
+      localStorage.removeItem('payment_reference');
+      localStorage.removeItem('payment_registration_id');
+      localStorage.removeItem('registration_in_progress');
+      localStorage.removeItem('registration_data');
+      localStorage.removeItem('current_registration_step');
+
+      // Redirect to login
+      router.push('/auth/login');
+    }
+  }, [countdown, status, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-[#f6fbe9] via-white to-[#eef5d6] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f6fbe9] via-white to-[#eef5d6] px-4">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-gray-100 p-8 text-center">
 
         <div className="flex justify-center mb-6">
