@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface AddressData {
   addressLine1: string;
@@ -15,13 +16,16 @@ interface AddressData {
 }
 
 interface AddressDetailsStepProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
   onNext: (data: AddressData) => void;
+  isLoading?: boolean;
 }
 
 export const AddressDetailsStep = ({
   data,
   onNext,
+  isLoading = false,
 }: AddressDetailsStepProps) => {
   const [formData, setFormData] = useState<AddressData>({
     addressLine1: data.addressLine1 || "",
@@ -87,7 +91,7 @@ export const AddressDetailsStep = ({
   };
 
   const southAfricanProvinces = [
-    "Eastern Cape", "Free State", "Gauteng", "KwaZulu-Natal", 
+    "Eastern Cape", "Free State", "Gauteng", "KwaZulu-Natal",
     "Limpopo", "Mpumalanga", "North West", "Northern Cape", "Western Cape"
   ];
 
@@ -135,9 +139,8 @@ export const AddressDetailsStep = ({
               placeholder="Country *"
               value={formData.country}
               onChange={(e) => handleInputChange('country', e.target.value)}
-              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${
-                errors.country ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${errors.country ? 'border-red-500' : 'border-gray-300'
+                }`}
             />
             {errors.country && (
               <p className="text-sm text-red-500 mt-1">{errors.country}</p>
@@ -152,9 +155,8 @@ export const AddressDetailsStep = ({
             placeholder="Address Line 1 * (Street address, building name, etc.)"
             value={formData.addressLine1}
             onChange={(e) => handleInputChange('addressLine1', e.target.value)}
-            className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${
-              errors.addressLine1 ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${errors.addressLine1 ? 'border-red-500' : 'border-gray-300'
+              }`}
           />
           {errors.addressLine1 && (
             <p className="text-sm text-red-500 mt-1">{errors.addressLine1}</p>
@@ -191,9 +193,8 @@ export const AddressDetailsStep = ({
               placeholder="Postal Code *"
               value={formData.postalCode}
               onChange={(e) => handleInputChange('postalCode', e.target.value)}
-              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${
-                errors.postalCode ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${errors.postalCode ? 'border-red-500' : 'border-gray-300'
+                }`}
             />
             {errors.postalCode && (
               <p className="text-sm text-red-500 mt-1">{errors.postalCode}</p>
@@ -207,9 +208,8 @@ export const AddressDetailsStep = ({
               placeholder="City *"
               value={formData.city}
               onChange={(e) => handleInputChange('city', e.target.value)}
-              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${
-                errors.city ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${errors.city ? 'border-red-500' : 'border-gray-300'
+                }`}
             />
             {errors.city && (
               <p className="text-sm text-red-500 mt-1">{errors.city}</p>
@@ -235,9 +235,8 @@ export const AddressDetailsStep = ({
               <select
                 value={formData.province}
                 onChange={(e) => handleInputChange('province', e.target.value)}
-                className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${
-                  errors.province ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${errors.province ? 'border-red-500' : 'border-gray-300'
+                  }`}
               >
                 <option value="">Select Province *</option>
                 {southAfricanProvinces.map((province) => (
@@ -255,9 +254,17 @@ export const AddressDetailsStep = ({
 
         <button
           type="submit"
-          className="w-full bg-[#9FC93B] hover:bg-[#89B534] text-white font-medium py-3 rounded-md transition-colors duration-200 text-sm"
+          disabled={isLoading}
+          className="w-full bg-[#9FC93B] hover:bg-[#89B534] text-white font-medium py-3 rounded-md transition-colors duration-200 text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
         >
-          Continue to Personal Details
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving Address...
+            </>
+          ) : (
+            'Continue to Personal Details'
+          )}
         </button>
       </form>
     </div>

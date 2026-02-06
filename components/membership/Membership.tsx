@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -301,7 +302,7 @@ export default function MembershipPricing() {
 
       if (!currentSubscription?.registrationId && !userInfo.id) {
         toast.error('Please complete your registration first before subscribing to a paid plan.');
-        router.push('/auth/register');
+        router.push('/auth/signup');
         setIsLoading(false);
         return;
       }
