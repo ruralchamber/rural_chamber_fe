@@ -74,6 +74,7 @@ function RegistrationWizardContent() {
     country: "",
     addressLine1: "",
     postalCode: "",
+    suburb: "",
     companyName: "",
     registrationNumber: "",
     sector: "",
@@ -192,7 +193,7 @@ function RegistrationWizardContent() {
     };
 
     loadExistingRegistration();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateRegistrationData = (updates: Partial<RegistrationData>) => {
