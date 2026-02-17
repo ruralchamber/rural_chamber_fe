@@ -1,7 +1,7 @@
 // contexts/AuthContext.tsx
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { authUtils } from '@/app/api/lib/auth-utils';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -32,26 +32,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const router = useRouter();
   const pathname = usePathname();
 
-  const checkAuthStatus = () => {
+  // ✅ Wrap with useCallback to maintain stable reference
+  const checkAuthStatus = useCallback(() => {
     authUtils.syncTokens();
-    
+
     const isAuth = authUtils.isAuthenticated();
     const userData = authUtils.getUserData();
-    
+
     setIsLoggedIn(isAuth);
     setUser(userData);
-    
+
     const adminStatus = userData?.role === 'admin';
     setIsAdmin(adminStatus);
-    
-    return { isAuth, isAdmin: adminStatus, user: userData };
-  };
 
-  const redirectBasedOnRole = (fromLogin: boolean = false) => {
+    return { isAuth, isAdmin: adminStatus, user: userData };
+  }, []); // No dependencies needed since it only uses authUtils (which is stable)
+
+  // Also wrap redirectBasedOnRole since it depends on checkAuthStatus and pathname
+  const redirectBasedOnRole = useCallback((fromLogin: boolean = false) => {
     const { isAuth, isAdmin: adminCheck } = checkAuthStatus();
-    
+
     if (!isAuth) {
-    
       return;
     }
     if (fromLogin) {
@@ -66,11 +67,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     if (adminCheck) {
-     
       const isOnAdminPage = pathname?.startsWith('/admin');
       const isOnLoginPage = pathname === '/auth/login';
       const isOnHomePage = pathname === '/';
-      
+
       if ((isOnHomePage || isOnLoginPage) && !isOnAdminPage) {
         console.log('🔄 Admin on homepage/login, redirecting to admin dashboard');
         router.push('/admin/dashboard');
@@ -81,37 +81,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         router.push('/connect-hub');
       }
     }
-  };
+  }, [checkAuthStatus, pathname, router]); // Add dependencies
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     console.log('🔄 Refreshing user data...');
     checkAuthStatus();
-  };
+  }, [checkAuthStatus]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     console.log('👋 Logging out...');
     authUtils.clearAuthData();
     setIsLoggedIn(false);
     setIsAdmin(false);
     setUser(null);
-    
+
     router.push('/auth/login');
-  };
+  }, [router]);
 
   useEffect(() => {
     const authData = checkAuthStatus();
     setIsInitialized(true);
-    
+
     if (authData.isAuth) {
       redirectBasedOnRole();
     }
-  }, []);
+  }, [checkAuthStatus, redirectBasedOnRole]); // Add dependencies
 
   useEffect(() => {
     if (isInitialized) {
       redirectBasedOnRole();
     }
-  }, [pathname, isInitialized]);
+  }, [pathname, isInitialized, redirectBasedOnRole]); // Add redirectBasedOnRole
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -135,12 +135,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      isLoggedIn, 
+    <AuthContext.Provider value={{
+      isLoggedIn,
       isAdmin,
-      user, 
-      checkAuthStatus, 
-      logout, 
+      user,
+      checkAuthStatus,
+      logout,
       refreshUser,
       redirectBasedOnRole
     }}>
