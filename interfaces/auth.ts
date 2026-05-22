@@ -1,6 +1,10 @@
 import type { Request } from "express";
 
 export type TokenData = {
+  resumeStep: any;
+  user(user: any): string;
+  needsToCompleteRegistration: any;
+  userExists: boolean;
 
   accessToken: string;
   refreshToken: string;

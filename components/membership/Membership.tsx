@@ -1,25 +1,25 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Check, ArrowRight, Loader2 } from "lucide-react";
+import { Check, ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SUBSCRIPTION_API, SubscriptionType } from "@/app/api/endpoints/rest-api/subscription/subscription";
+import { PAYMENT_API } from "@/app/api/endpoints/rest-api/payment/payment";
 
 interface PricingTier {
-  id: SubscriptionType;
+  id: string;
   name: string;
-  monthlyPrice: number;
-  annualPrice: number;
-  subtitle: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
+  description: string;
+  monthlyAmount: number;
+  annualAmount: number;
   features: string[];
-  buttonText: string;
-  buttonStyle: string;
+  accountType: string;
+  membershipType: SubscriptionType;
+  isActive: boolean;
 }
 
 export default function MembershipPricing() {
@@ -28,9 +28,14 @@ export default function MembershipPricing() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
+  const [plans, setPlans] = useState<PricingTier[]>([]);
+  const [userAccountType, setUserAccountType] = useState<"individual" | "organizational">("individual");
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
 
   useEffect(() => {
+    loadUserInfo();
     checkCurrentSubscription();
+    fetchPlans();
     
     const urlParams = new URLSearchParams(window.location.search);
     const reference = urlParams.get('reference');
@@ -39,6 +44,19 @@ export default function MembershipPricing() {
       handlePaymentSuccess(reference);
     }
   }, []);
+
+  const loadUserInfo = () => {
+    try {
+      const userData = localStorage.getItem('userInfo');
+      if (userData) {
+        const parsedUser = JSON.parse(userData);
+        const accountType = parsedUser.accountType || "individual";
+        setUserAccountType(accountType);
+      }
+    } catch (error) {
+      console.error('Error loading user info:', error);
+    }
+  };
 
   const checkCurrentSubscription = async () => {
     try {
@@ -49,7 +67,6 @@ export default function MembershipPricing() {
                     localStorage.getItem('token');
       
       if (!token) {
-        console.log('No token found, user not logged in');
         return;
       }
 
@@ -65,178 +82,166 @@ export default function MembershipPricing() {
     }
   };
 
-  const handlePaymentSuccess = async (reference: string) => {
-    setIsLoading(true);
+  const fetchPlans = async () => {
     try {
-      toast.success('Payment successful! Activating your subscription...');
+      setIsLoadingPlans(true);
+      const response = await SUBSCRIPTION_API.GET_SUBSCRIPTION_PLANS();
       
-      const pendingSubscription = sessionStorage.getItem('pendingSubscription');
-      if (pendingSubscription) {
-        const subscriptionData = JSON.parse(pendingSubscription);
+      let fetchedPlans: PricingTier[] = [];
+      
+      if (response.data) {
+        const apiData = response.data;
         
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-        const userId = userInfo.id || userInfo.userId;
-        
-        if (userId) {
-          const subscriptionResponse = await SUBSCRIPTION_API.CREATE_SUBSCRIPTION({
-            userId: parseInt(userId),
-            registrationId: subscriptionData.registrationId,
-            subscriptionType: subscriptionData.subscriptionType,
-            billingFrequency: subscriptionData.billingFrequency,
-            amount: subscriptionData.amount,
-          });
-          
-          if (subscriptionResponse.error) {
-            toast.error('Payment successful but subscription creation failed. Please contact support.');
-          } else {
-            toast.success('Subscription activated successfully!');
-            setCurrentSubscription(subscriptionResponse.data);
-            sessionStorage.removeItem('pendingSubscription');
-            window.history.replaceState({}, document.title, window.location.pathname);
-            
-            setTimeout(() => {
-              router.push('/subscription/profile');
-            }, 2000);
-          }
+        if (userAccountType === "individual" && apiData.individual) {
+          fetchedPlans = apiData.individual.map((plan: any) => ({
+            id: plan.id,
+            name: plan.name,
+            description: plan.description,
+            monthlyAmount: plan.monthlyAmount,
+            annualAmount: plan.annualAmount,
+            features: plan.features || [],
+            accountType: plan.accountType,
+            membershipType: plan.membershipType,
+            isActive: plan.isActive
+          }));
+        } else if (userAccountType === "organizational" && apiData.organizational) {
+          fetchedPlans = apiData.organizational.map((plan: any) => ({
+            id: plan.id,
+            name: plan.name,
+            description: plan.description,
+            monthlyAmount: plan.monthlyAmount,
+            annualAmount: plan.annualAmount,
+            features: plan.features || [],
+            accountType: plan.accountType,
+            membershipType: plan.membershipType,
+            isActive: plan.isActive
+          }));
         }
       }
+      
+      const freePlan: PricingTier = {
+        id: "free",
+        name: "Free Membership",
+        description: "Access to Industry-Specific Content",
+        monthlyAmount: 0,
+        annualAmount: 0,
+        features: ["Limited Networking Opportunities"],
+        accountType: userAccountType,
+        membershipType: "free" as SubscriptionType,
+        isActive: true
+      };
+      
+      setPlans([freePlan, ...fetchedPlans]);
     } catch (error: any) {
-      console.error('Payment success processing error:', error);
-      toast.error('Failed to process payment. Please contact support.');
+      console.error('Error fetching plans:', error);
+      toast.error('Failed to load membership plans');
     } finally {
+      setIsLoadingPlans(false);
+    }
+  };
+
+  const proceedWithPayment = async (plan: PricingTier, amount: number) => {
+    try {
+      const userData = localStorage.getItem('userInfo') || localStorage.getItem('user_data');
+      let userInfo = { email: '', firstName: '', lastName: '', id: 0 };
+      
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          userInfo = {
+            email: parsedUser.email || '',
+            firstName: parsedUser.firstName || parsedUser.fullName?.split(' ')[0] || '',
+            lastName: parsedUser.lastName || parsedUser.fullName?.split(' ').slice(1).join(' ') || '',
+            id: parsedUser.id || 0
+          };
+        } catch (e) {
+          console.error('Error parsing user data:', e);
+        }
+      }
+
+      const paymentData = {
+        email: userInfo.email,
+        firstName: userInfo.firstName,
+        lastName: userInfo.lastName,
+        membershipType: plan.membershipType,
+        billingFrequency: billingCycle,
+        amount: amount,
+        registrationId: currentSubscription?.registrationId || userInfo.id || 0
+      };
+
+      sessionStorage.setItem('pendingSubscription', JSON.stringify({
+        plan: plan.membershipType,
+        billingCycle: billingCycle,
+        amount: amount,
+        planName: plan.name,
+        isUpgrade: currentSubscription?.subscriptionType !== "free"
+      }));
+      
+      const paymentResponse = await PAYMENT_API.INITIALIZE_PAYMENT(paymentData);
+      
+      if (paymentResponse.error) {
+        let errorMessage = paymentResponse.message || 'Failed to initialize payment';
+        
+        if (errorMessage.includes('Plan not found')) {
+          errorMessage = 'This membership plan is not yet available. It will be implemented soon. Please select a different plan or try again later.';
+        } else if (errorMessage.includes('Payment gateway error')) {
+          errorMessage = 'Payment gateway error. Please try again or contact support.';
+        } else if (errorMessage.includes('Billing frequency mismatch')) {
+          errorMessage = 'Billing frequency mismatch. Your registration was created with a different billing cycle. Please select the same billing frequency or contact support.';
+        } else if (errorMessage.includes('Internal server error') && paymentResponse.error) {
+          if (typeof paymentResponse.error === 'string') {
+            if (paymentResponse.error.includes('Billing frequency mismatch')) {
+              errorMessage = 'Billing frequency mismatch. Your registration was created with a different billing cycle.';
+            } else if (paymentResponse.error.includes('Plan not found')) {
+              errorMessage = 'This membership plan is not yet available. It will be implemented soon.';
+            } else {
+              errorMessage = paymentResponse.error;
+            }
+          }
+        }
+        
+        toast.error(errorMessage, { duration: 6000 });
+        setIsLoading(false);
+        return;
+      }
+
+      if (paymentResponse.data?.authorization_url) {
+        window.location.href = paymentResponse.data.authorization_url;
+      } else {
+        toast.error('Payment initialization failed - no payment URL received');
+        setIsLoading(false);
+      }
+
+    } catch (error: any) {
+      console.error('Error in proceedWithPayment:', error);
+      
+      let errorMessage = 'Failed to initialize payment';
+      
+      if (error.response?.data?.error) {
+        const errorData = error.response.data.error;
+        if (typeof errorData === 'string') {
+          if (errorData.includes('Billing frequency mismatch')) {
+            errorMessage = 'Billing frequency mismatch. Your registration was created with a different billing cycle. Please select the same billing frequency or contact support.';
+          } else if (errorData.includes('Plan not found')) {
+            errorMessage = 'This membership plan is not yet available. It will be implemented soon.';
+          } else {
+            errorMessage = errorData;
+          }
+        }
+      } else if (error.response?.data?.message) {
+        if (error.response.data.message.includes('Billing frequency mismatch')) {
+          errorMessage = 'Billing frequency mismatch. Please select the correct billing frequency.';
+        } else {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      toast.error(errorMessage, { duration: 6000 });
       setIsLoading(false);
     }
   };
 
-  const pricingTiers: PricingTier[] = [
-    {
-      id: "free",
-      name: "Free Membership",
-      monthlyPrice: 0,
-      annualPrice: 0,
-      subtitle: "Access to Industry-Specific Content",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: ["Limited Networking Opportunities"],
-      buttonText: "Join for Free",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "individual_silver",
-      name: "Individual Silver",
-      monthlyPrice: 46,
-      annualPrice: 500,
-      subtitle: "Perfect for entrepreneurs and small business owners",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "Networking Sessions/Stream",
-        "Access to Monthly Events",
-        "Business Planning & Advisory",
-        "Business Finance Support Assistance",
-        "Association Affiliation",
-      ],
-      buttonText: "Select Plan",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "individual_gold",
-      name: "Individual Gold",
-      monthlyPrice: 115,
-      annualPrice: 1250,
-      subtitle: "Enhanced benefits for growing businesses",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "All Silver features and more",
-        "Ohakaza Membership benefits:",
-        "Goats farming study guides,",
-        "Access to online practicals, member card",
-        "Enhanced networking opportunities with tangible actions and results",
-      ],
-      buttonText: "Select Plan",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "individual_platinum",
-      name: "Individual Platinum",
-      monthlyPrice: 230,
-      annualPrice: 2500,
-      subtitle: "Comprehensive support for established businesses",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "Silver, Gold packages and more",
-        "Access to exclusive events, conferences,",
-        "Travels to meet and expand business in other countries",
-        "Co-travel opportunities with the team to meet global investors, partners and other stakeholders",
-      ],
-      buttonText: "Select Plan",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "organizational_silver",
-      name: "Organizational Silver",
-      monthlyPrice: 230,
-      annualPrice: 2500,
-      subtitle: "Great for small organizations and non-profits",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "Networking Sessions/Stream",
-        "Access to Monthly Events",
-        "Business Planning & Advisory",
-        "Business Finance Support Assistance",
-        "Association Affiliation",
-      ],
-      buttonText: "Select Plan",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "organizational_gold",
-      name: "Organizational Gold",
-      monthlyPrice: 350,
-      annualPrice: 3500,
-      subtitle: "Enhanced organizational benefits",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "All Silver features and more",
-        "Ohakaza Membership benefits:",
-        "Goats farming study guides,",
-        "access to online practicals, member card",
-        "Enhanced networking opportunities with tangible actions and results",
-      ],
-      buttonText: "Select Plan",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-    {
-      id: "organizational_platinum",
-      name: "Organizational Platinum",
-      monthlyPrice: 460,
-      annualPrice: 5000,
-      subtitle: "Comprehensive support for established businesses",
-      color: "text-orange-600",
-      bgColor: "bg-orange-50",
-      borderColor: "border-orange-200",
-      features: [
-        "Silver, Gold packages and more",
-        "Access to exclusive events, conferences,",
-        "Travels to meet and expand business in other countries",
-        "Co-travel opportunities with the team to meet global investors, partners and other stakeholders",
-      ],
-      buttonText: "Contact Us",
-      buttonStyle: "border border-gray-300 text-gray-600 hover:border-gray-400",
-    },
-  ];
-
-  const handleSelectPlan = async (tier: PricingTier) => {
+  const handleSelectPlan = async (plan: PricingTier) => {
     const token = localStorage.getItem('accessToken') || 
                   localStorage.getItem('access_token') ||
                   localStorage.getItem('token');
@@ -248,70 +253,200 @@ export default function MembershipPricing() {
       return;
     }
 
-    if (tier.id === "free") {
-      try {
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-        const registrationId = userInfo.registrationId || userInfo.id;
-
-        if (registrationId) {
-          const subscriptionResponse = await SUBSCRIPTION_API.CREATE_SUBSCRIPTION({
-            userId: userInfo.id,
-            registrationId: registrationId,
-            subscriptionType: "free",
-            billingFrequency: "annual",
-            amount: 0,
-          });
-          
-          if (!subscriptionResponse.error) {
-            toast.success('Free membership activated!');
-            setCurrentSubscription(subscriptionResponse.data);
-          }
-        }
-      } catch (error) {
-        toast.info('Free membership is automatically included');
-      }
-      return;
-    }
-
-    if (tier.buttonText === "Contact Us") {
-      router.push('/contact-us');
-      return;
-    }
-
-    if (currentSubscription?.subscriptionType === tier.id) {
-      toast.info(`You are already subscribed to the ${tier.name} plan`);
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-      const registrationId = userInfo.registrationId || userInfo.id;
-
-      if (!registrationId) {
-        toast.error('User registration information not found');
-        router.push('/auth/login');
+      const amount = billingCycle === "monthly" ? plan.monthlyAmount : plan.annualAmount;
+      const isFreePlan = plan.membershipType === "free";
+      
+      const isCurrentPlan = currentSubscription?.subscriptionType === plan.membershipType;
+      if (isCurrentPlan) {
+        toast.info(`You're already on the ${plan.name} plan`);
+        setIsLoading(false);
         return;
       }
 
-      const amount = billingCycle === "monthly" ? tier.monthlyPrice : tier.annualPrice;
+      if (isFreePlan) {
+        const updateResponse = await SUBSCRIPTION_API.UPDATE_SUBSCRIPTION_PLAN({
+          newSubscriptionType: "free",
+          newBillingFrequency: "annual"
+        });
+        
+        if (!updateResponse.error) {
+          toast.success(`Successfully switched to ${plan.name} plan!`);
+          setCurrentSubscription(updateResponse.data);
+          checkCurrentSubscription();
+        } else {
+          toast.error('Failed to switch plan: ' + (updateResponse.message || 'Unknown error'));
+        }
+        setIsLoading(false);
+        return;
+      }
 
-      const subscriptionData = {
-        subscriptionType: tier.id,
-        billingFrequency: billingCycle,
-        amount,
-        registrationId,
-        planName: tier.name,
-      };
+      const userData = localStorage.getItem('userInfo') || localStorage.getItem('user_data');
+      let userInfo = { email: '', firstName: '', lastName: '', id: 0 };
+      
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          userInfo = {
+            email: parsedUser.email || '',
+            firstName: parsedUser.firstName || parsedUser.fullName?.split(' ')[0] || '',
+            lastName: parsedUser.lastName || parsedUser.fullName?.split(' ').slice(1).join(' ') || '',
+            id: parsedUser.id || 0
+          };
+        } catch (e) {
+          console.error('Error parsing user data:', e);
+        }
+      }
 
-      sessionStorage.setItem('pendingSubscription', JSON.stringify(subscriptionData));
-      
-      router.push(`/payment?plan=${tier.id}&billing=${billingCycle}`);
-      
+      if (!currentSubscription?.registrationId && !userInfo.id) {
+        toast.error('Please complete your registration first before subscribing to a paid plan.');
+        router.push('/auth/signup');
+        setIsLoading(false);
+        return;
+      }
+
+      let registrationBillingFrequency = "annual";
+      try {
+        const registrationDataStr = localStorage.getItem('registration_data');
+        if (registrationDataStr) {
+          const registrationData = JSON.parse(registrationDataStr);
+          if (registrationData.billingFrequency) {
+            registrationBillingFrequency = registrationData.billingFrequency;
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing registration data:', e);
+      }
+
+      if (registrationBillingFrequency !== billingCycle) {
+        toast.custom((t) => (
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Billing Frequency Change
+            </h3>
+            <p className="text-gray-600 mb-4">
+              You originally selected <span className="font-bold">{registrationBillingFrequency}</span> billing during registration, 
+              but are now selecting <span className="font-bold">{billingCycle}</span> billing. 
+              Do you want to proceed with {billingCycle} billing?
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  toast.dismiss(t);
+                  proceedWithPayment(plan, amount);
+                }}
+                className="flex-1 bg-[#9FC93B] hover:bg-[#8AB82F] text-white py-2 px-4 rounded-md font-medium"
+              >
+                Yes, proceed
+              </button>
+              <button
+                onClick={() => {
+                  toast.dismiss(t);
+                  setIsLoading(false);
+                }}
+                className="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-700 py-2 px-4 rounded-md font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ), {
+          duration: 10000,
+        });
+        return;
+      }
+
+      proceedWithPayment(plan, amount);
+
     } catch (error: any) {
       console.error('Error selecting plan:', error);
-      toast.error(error.message || 'Failed to process subscription');
+      
+      let errorMessage = error.message || 'Failed to process subscription';
+      
+      if (error.message?.includes('408') || error.message?.includes('timeout')) {
+        errorMessage = 'Request timeout. The server is taking too long to respond. Please try again.';
+      } else if (error.message?.includes('Plan not found')) {
+        errorMessage = 'This membership plan is not yet available. It will be implemented soon. Please select a different plan or try again later.';
+      }
+      
+      toast.error(errorMessage);
+      setIsLoading(false);
+    }
+  };
+
+  const handlePaymentSuccess = async (reference: string) => {
+    try {
+      setIsLoading(true);
+      
+      const verificationResponse = await PAYMENT_API.VERIFY_PAYMENT(reference);
+      
+      if (verificationResponse.error) {
+        let errorMessage = verificationResponse.message || 'Payment verification failed';
+        
+        if (verificationResponse.error && typeof verificationResponse.error === 'string') {
+          if (verificationResponse.error.includes('Billing frequency mismatch')) {
+            errorMessage = 'Payment failed: Billing frequency mismatch. Please contact support.';
+          }
+        }
+        
+        toast.error(errorMessage);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!verificationResponse.data || verificationResponse.data.status !== 'success') {
+        toast.error('Payment verification failed');
+        setIsLoading(false);
+        return;
+      }
+
+      const pendingSubscriptionStr = sessionStorage.getItem('pendingSubscription');
+      if (!pendingSubscriptionStr) {
+        toast.error('No pending subscription found');
+        setIsLoading(false);
+        return;
+      }
+
+      const pendingSubscription = JSON.parse(pendingSubscriptionStr);
+      
+      const updateResponse = await SUBSCRIPTION_API.UPDATE_SUBSCRIPTION_PLAN({
+        newSubscriptionType: pendingSubscription.plan,
+        newBillingFrequency: pendingSubscription.billingCycle
+      });
+      
+      if (updateResponse.error) {
+        let errorMessage = updateResponse.message || 'Failed to update subscription after payment';
+        
+        if (updateResponse.error && typeof updateResponse.error === 'string') {
+          if (updateResponse.error.includes('Billing frequency mismatch')) {
+            errorMessage = 'Failed to update subscription: Billing frequency mismatch with your registration. Please contact support.';
+          }
+        }
+        
+        toast.error(errorMessage);
+        setIsLoading(false);
+        return;
+      }
+
+      if (pendingSubscription.isUpgrade) {
+        toast.success(`Payment successful! You have been upgraded to the ${pendingSubscription.planName} plan.`);
+      } else {
+        toast.success(`Payment successful! Your subscription has been changed to the ${pendingSubscription.planName} plan.`);
+      }
+      
+      await checkCurrentSubscription();
+      
+      sessionStorage.removeItem('pendingSubscription');
+      
+      const url = new URL(window.location.href);
+      url.searchParams.delete('reference');
+      window.history.replaceState({}, '', url.toString());
+      
+    } catch (error: any) {
+      console.error('Error handling payment success:', error);
+      toast.error('Failed to process payment success: ' + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -337,6 +472,50 @@ export default function MembershipPricing() {
     },
   };
 
+  const formatPrice = (price: number) => {
+    if (price === 0) return "Free";
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+      minimumFractionDigits: 2,
+    }).format(price);
+  };
+
+  if (isLoadingPlans) {
+    return (
+      <div className="w-full bg-white py-16 sm:py-20 lg:py-24">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#9FC93B] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading membership plans...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (plans.length === 0) {
+    return (
+      <div className="w-full bg-white py-16 sm:py-20 lg:py-24">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 text-center">
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="h-12 w-12 text-gray-400" />
+          </div>
+          <h3 className="text-2xl font-bold text-gray-700 mb-2">
+            No Plans Available
+          </h3>
+          <p className="text-gray-600 mb-6">
+            No membership plans are available for your account type ({userAccountType}).
+          </p>
+          <button
+            onClick={fetchPlans}
+            className="bg-[#9FC93B] hover:bg-[#8AB82F] text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            Retry Loading Plans
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full bg-white py-16 sm:py-20 lg:py-24">
       <motion.div
@@ -357,16 +536,46 @@ export default function MembershipPricing() {
           <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
             Select the membership plan that best fits your business needs
           </p>
+          <p className="text-sm text-gray-500 mt-2">
+            {userAccountType === "individual" ? "Individual" : "Organizational"} Plans
+          </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8 mb-12">
-          {pricingTiers.map((tier, index) => {
-            const price = billingCycle === "monthly" ? tier.monthlyPrice : tier.annualPrice;
-            const isCurrentPlan = currentSubscription?.subscriptionType === tier.id;
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex rounded-lg border border-gray-300 p-1">
+            <button
+              onClick={() => setBillingCycle("annual")}
+              className={`px-6 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                billingCycle === "annual"
+                  ? "bg-[#9FC93B] text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              Annual Billing
+            </button>
+            <button
+              onClick={() => setBillingCycle("monthly")}
+              className={`px-6 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+                billingCycle === "monthly"
+                  ? "bg-[#9FC93B] text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              Monthly Billing
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-12">
+          {plans.map((plan) => {
+            const price = billingCycle === "monthly" ? plan.monthlyAmount : plan.annualAmount;
+            const isCurrentPlan = currentSubscription?.subscriptionType === plan.membershipType;
+            const hasActiveSubscription = currentSubscription && currentSubscription.status === 'active';
+            const isFreePlan = plan.membershipType === "free";
             
             return (
               <motion.div
-                key={tier.name}
+                key={plan.id}
                 variants={cardVariants}
                 whileHover={{
                   y: -8,
@@ -384,20 +593,20 @@ export default function MembershipPricing() {
                   <div className="mb-6">
                     <div className="flex items-baseline mb-2">
                       <span className="text-4xl sm:text-5xl font-bold text-gray-900">
-                        {tier.id === "organizational_platinum" ? "Custom" : `R${price}`}
+                        {formatPrice(price)}
                       </span>
-                      {tier.id !== "organizational_platinum" && tier.id !== "free" && (
+                      {!isFreePlan && (
                         <span className="text-base text-gray-500 ml-2">
-                          /{billingCycle === "monthly" ? "Month" : "Year"}
+                          /{billingCycle === "monthly" ? "month" : "year"}
                         </span>
                       )}
                     </div>
-                    <div className={`text-lg font-semibold mb-2 ${tier.color}`}>
-                      {tier.name}
+                    <div className="text-lg font-semibold mb-2 text-orange-600">
+                      {plan.name}
                     </div>
-                    <p className="text-sm text-gray-600">{tier.subtitle}</p>
+                    <p className="text-sm text-gray-600">{plan.description}</p>
 
-                    {tier.id !== "free" && tier.id !== "organizational_platinum" && (
+                    {!isFreePlan && (
                       <div className="h-1 relative top-2 mx-auto">
                         <Image
                           src="/Divider.png"
@@ -410,38 +619,13 @@ export default function MembershipPricing() {
                     )}
                   </div>
 
-                  {tier.id !== "free" && tier.id !== "organizational_platinum" && (
-                    <div className="flex gap-2 mb-6">
-                      <button
-                        onClick={() => setBillingCycle("annual")}
-                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                          billingCycle === "annual"
-                            ? "bg-[#9FC93B] text-white"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                        }`}
-                      >
-                        Annual
-                      </button>
-                      <button
-                        onClick={() => setBillingCycle("monthly")}
-                        className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
-                          billingCycle === "monthly"
-                            ? "bg-[#9FC93B] text-white"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                        }`}
-                      >
-                        Monthly
-                      </button>
-                    </div>
-                  )}
-
                   <ul className="space-y-4 mb-8 grow">
-                    {tier.features.map((feature, idx) => (
+                    {plan.features.map((feature, idx) => (
                       <li
                         key={idx}
                         className="flex items-start text-sm text-gray-700"
                       >
-                        <span className={`${tier.color} mr-3 mt-0.5 shrink-0`}>
+                        <span className="text-orange-600 mr-3 mt-0.5 shrink-0">
                           <Check className="w-5 h-5" />
                         </span>
                         <span>{feature}</span>
@@ -453,12 +637,12 @@ export default function MembershipPricing() {
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => handleSelectPlan(tier)}
+                      onClick={() => handleSelectPlan(plan)}
                       disabled={isLoading || isCheckingSubscription || isCurrentPlan}
                       className={`w-full px-6 py-3 rounded-md text-base font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
                         isCurrentPlan 
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : tier.buttonStyle
+                          : 'bg-[#9FC93B] hover:bg-[#8AB82F] text-white'
                       } ${isLoading || isCheckingSubscription ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {isCheckingSubscription ? (
@@ -473,7 +657,13 @@ export default function MembershipPricing() {
                         </>
                       ) : (
                         <>
-                          {isCurrentPlan ? 'Current Plan' : tier.buttonText}
+                          {isCurrentPlan 
+                            ? 'Current Plan' 
+                            : hasActiveSubscription
+                              ? 'Change to this Plan'
+                              : isFreePlan
+                                ? 'Get Free Plan'
+                                : 'Select Plan'}
                           {!isCurrentPlan && <ArrowRight className="w-4 h-4" />}
                         </>
                       )}

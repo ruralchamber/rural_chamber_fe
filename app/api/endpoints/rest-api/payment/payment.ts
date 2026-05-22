@@ -1,4 +1,3 @@
-//api/endpoints/rest-api/payment
 import { POST, GET } from "@/app/api/lib/client";
 import { CustomResponse } from "@/interfaces/response";
 import { baseUrl } from "../../url";
@@ -34,29 +33,32 @@ export interface PaymentStatusResponse {
 }
 
 export const PAYMENT_API = {
-  // Initialize payment
+
   INITIALIZE_PAYMENT: async (
     data: PaymentData
   ): Promise<CustomResponse<PaymentResponse>> => {
     try {
       const response = await POST(`${PaymentBaseURL}/initialize`, data);
       return response;
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      return error.response?.data || {
+        error: true,
+        message: error.message || "Failed to initialize payment"
+      };
     }
   },
 
-  // Verify payment
   VERIFY_PAYMENT: async (
     reference: string
   ): Promise<CustomResponse<PaymentVerificationResponse>> => {
     try {
-      const response = await GET(`${PaymentBaseURL}/verify?reference=${reference}`,);
+      const response = await GET(`${PaymentBaseURL}/verify?reference=${reference}`);
       return response;
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      return error.response?.data || {
+        error: true,
+        message: error.message || "Failed to verify payment"
+      };
     }
   },
-
-
 };

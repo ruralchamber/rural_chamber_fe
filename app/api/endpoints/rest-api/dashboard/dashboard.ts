@@ -1,4 +1,3 @@
-// app/api/endpoints/rest-api/dashboard/dashboard.ts
 import { baseUrl } from "../../url";
 import { GET } from "@/app/api/lib/client";
 import { CustomResponse } from "@/interfaces/response";
@@ -48,11 +47,47 @@ export interface DashboardStats {
     thisMonth: number;
     thisYear: number;
   };
+  trips: {
+    totalTrips: number;
+    totalRevenue: number;
+  };
+  users: {
+    totals: {
+      totalUsers: number;
+      verifiedUsers: number;
+      completedRegistrations: number;
+      activeSubscriptions: number;
+    };
+    breakdowns: {
+      bySubscriptionTier: Array<{ tier: string; count: number }>;
+      byRole: Array<{ role: string; count: number }>;
+    };
+    recentUsers: Array<{
+      id: number;
+      fullName: string;
+      email: string;
+      subscriptionTier: string;
+      emailVerified: boolean;
+      registrationCompleted: boolean;
+      createdAt: string;
+      membershipNumber?: string;
+    }>;
+    upcomingRenewals: Array<{
+      userId: number;
+      userName: string;
+      userEmail: string;
+      subscriptionType: string;
+      amount: number;
+      nextBillingDate: string;
+      daysUntilRenewal: number;
+    }>;
+  };
   overview: {
     totalRevenue: number;
     totalMembers: number;
     totalSubscribers: number;
     activeEvents: number;
+    activeSubscriptions: number;
   };
 }
 

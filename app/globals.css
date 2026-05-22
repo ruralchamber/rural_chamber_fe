@@ -121,6 +121,12 @@
   }
 }
 
+@media (max-width: 1024px) {
+  .auth-side-image {
+    display: none !important;
+  }
+}
+
 @keyframes slideIn {
    from {
      transform: translateX(100%);

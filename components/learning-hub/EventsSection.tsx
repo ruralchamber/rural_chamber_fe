@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, Clock, Users, Search, ArrowLeft, AlertCircle, CheckCircle, XCircle, Building2 } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, Search, ArrowLeft, AlertCircle, CheckCircle, XCircle, Building2, Eye, ChevronRight } from 'lucide-react';
 import { EVENTS_API, EventResponse } from "@/app/api/endpoints/rest-api/events/events";
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/components/common/Toast";
 import { motion } from 'framer-motion';
+import EventModal from './Connect/EventsModal';
 
 export default function EventsLoggedIn() {
   const router = useRouter();
@@ -18,6 +19,10 @@ export default function EventsLoggedIn() {
   const [registering, setRegistering] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState<number | null>(null);
   const [showRegistrationAlert, setShowRegistrationAlert] = useState(false);
+  
+  // Modal states
+  const [selectedEvent, setSelectedEvent] = useState<EventResponse | null>(null);
+  const [showEventModal, setShowEventModal] = useState(false);
 
   useEffect(() => {
     fetchUserEvents();
@@ -58,11 +63,12 @@ export default function EventsLoggedIn() {
     }
   };
 
-  const filters = ['All Events', 'upcoming', 'past', 'Conference', 'Workshop', 'Seminar', 'Expo'];
+  const filters = ['All Events', 'upcoming', 'past', 'Conference', 'Workshop', 'Seminar', 'Expo', 'Networking'];
 
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.description.toLowerCase().includes(searchTerm.toLowerCase());
+                         event.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         event.location?.toLowerCase().includes(searchTerm.toLowerCase());
     
     let matchesFilter = true;
     if (selectedFilter !== 'All Events') {
@@ -109,13 +115,15 @@ export default function EventsLoggedIn() {
           await fetchUserRegistrations(); 
         } else if (response.status === 400) {
           showToast(response.message || "Event is not available for registration", 'warning');
+        } else if (response.status === 403) {
+          showToast("Your subscription tier doesn't have access to this event", 'error');
         } else {
           showToast(response.message || "Failed to register for event", 'error');
         }
       } else {
         showToast("Successfully registered for event! Check your email for confirmation.", 'success');
         await fetchUserRegistrations(); 
-        await fetchUserEvents(); 
+        await fetchUserEvents();
       }
     } catch (err: any) {
       console.error("Error registering for event:", err);
@@ -131,6 +139,9 @@ export default function EventsLoggedIn() {
       }
     } finally {
       setRegistering(null);
+      if (selectedEvent?.id === eventId) {
+        setShowEventModal(false);
+      }
     }
   };
 
@@ -151,22 +162,70 @@ export default function EventsLoggedIn() {
       } else {
         showToast("Registration cancelled successfully", 'success');
         await fetchUserRegistrations(); 
-        await fetchUserEvents(); 
+        await fetchUserEvents();
       }
     } catch (err: any) {
       console.error("Error cancelling registration:", err);
       showToast("Failed to cancel registration. Please try again.", 'error');
     } finally {
       setCancelling(null);
+      if (selectedEvent?.id === eventId) {
+        setShowEventModal(false);
+      }
     }
   };
 
-  const handleViewDetails = (eventId: number) => {
-    // router.push(`/events/${eventId}`);
+  const handleViewDetails = (event: EventResponse) => {
+    setSelectedEvent(event);
+    setShowEventModal(true);
+  };
+
+  const handleRegisterFromModal = async () => {
+    if (!selectedEvent) return;
+    await handleRegister(selectedEvent.id);
+  };
+
+  const handleCancelRegistrationFromModal = async () => {
+    if (!selectedEvent) return;
+    await handleCancelRegistration(selectedEvent.id);
+  };
+
+  const truncateText = (text: string, maxLength: number = 120) => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
   };
 
   const isEventFull = (event: EventResponse): boolean => {
     return !!(event.maxAttendees && event.attendees >= event.maxAttendees);
+  };
+
+  const getEventStatus = (event: EventResponse) => {
+    if (event.status === 'cancelled') return 'Cancelled';
+    if (isEventFull(event)) return 'Full';
+    return event.status.charAt(0).toUpperCase() + event.status.slice(1);
+  };
+
+  const getStatusColor = (event: EventResponse) => {
+    if (event.status === 'cancelled') return 'bg-red-500';
+    if (isEventFull(event)) return 'bg-red-500';
+    if (event.status === 'upcoming') return 'bg-green-500';
+    return 'bg-gray-500';
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      
+      return date.toLocaleDateString('en-ZA', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (error) {
+      return dateString;
+    }
   };
 
   if (loading) {
@@ -190,8 +249,8 @@ export default function EventsLoggedIn() {
       <ToastContainer />
       
       {showRegistrationAlert && (
-        <div className="fixed top-4 right-4 z-50">
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg shadow-lg">
+        <div className="fixed top-4 right-4 z-50 animate-fadeIn">
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg shadow-lg max-w-md">
             <div className="flex items-center">
               <AlertCircle className="h-5 w-5 text-yellow-400" />
               <div className="ml-3">
@@ -204,7 +263,18 @@ export default function EventsLoggedIn() {
         </div>
       )}
       
-      <div className="bg-linear-to-r from-[#01311B] to-[#024d2f] text-white py-32 px-4 sm:px-6 lg:px-8">
+      <EventModal
+        event={selectedEvent}
+        isOpen={showEventModal}
+        onClose={() => setShowEventModal(false)}
+        isUserRegistered={selectedEvent ? isUserRegistered(selectedEvent.id) : false}
+        onRegister={handleRegisterFromModal}
+        onCancelRegistration={handleCancelRegistrationFromModal}
+        isRegistering={selectedEvent?.id === registering}
+        isCancelling={selectedEvent?.id === cancelling}
+      />
+
+      <div className="bg-gradient-to-r from-[#01311B] to-[#024d2f] text-white py-32 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -226,14 +296,14 @@ export default function EventsLoggedIn() {
 
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-7xl mx-auto">
-        
+    
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
             <div className="flex flex-col lg:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search events..."
+                  placeholder="Search events by title, description, or location..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#9FC93B] focus:border-transparent"
@@ -256,12 +326,20 @@ export default function EventsLoggedIn() {
                 ))}
               </div>
             </div>
+            
+            {searchTerm && (
+              <div className="mt-4 text-sm text-gray-600">
+                Found {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} matching "{searchTerm}"
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {filteredEvents.map((event) => {
               const eventFull = isEventFull(event);
               const registered = isUserRegistered(event.id);
+              const statusText = getEventStatus(event);
+              const statusColor = getStatusColor(event);
               
               return (
                 <motion.div
@@ -269,62 +347,85 @@ export default function EventsLoggedIn() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
+                  className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-300 group"
                 >
-                  <div className="h-48 bg-linear-to-br from-green-100 to-green-200 relative cursor-pointer"
-                       onClick={() => handleViewDetails(event.id)}>
+                  <div 
+                    className="h-48 bg-gradient-to-br from-green-100 to-green-200 relative cursor-pointer overflow-hidden"
+                    onClick={() => handleViewDetails(event)}
+                  >
                     {event.image && (event.image.startsWith('http') || event.image.startsWith('/') || event.image.startsWith('data:')) ? (
                       <img 
                         src={event.image} 
                         alt={event.title} 
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <Calendar className="w-16 h-16 text-green-600 opacity-30" />
                       </div>
                     )}
+                    
                     <div className="absolute top-4 right-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        event.status === 'upcoming' 
-                          ? 'bg-green-500 text-white' 
-                          : 'bg-gray-500 text-white'
-                      }`}>
-                        {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColor} text-white`}>
+                        {statusText}
                       </span>
+                    </div>
+                    
+                    <div className="absolute top-4 left-4">
+                      <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-[#9FC93B] rounded-full text-xs font-semibold">
+                        {event.category || 'General'}
+                      </span>
+                    </div>
+                    
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2">
+                        <Eye className="w-4 h-4" />
+                        <span className="text-sm font-medium">View Details</span>
+                      </div>
                     </div>
                   </div>
 
                   <div className="p-6">
                     <div className="mb-3">
-                      <span className="inline-block px-3 py-1 bg-[#F5F9E8] text-[#9FC93B] rounded-full text-xs font-semibold mb-2">
-                        {event.category}
-                      </span>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2 cursor-pointer hover:text-[#9FC93B]"
-                          onClick={() => handleViewDetails(event.id)}>
+                      <h3 
+                        className="text-xl font-bold text-gray-900 mb-2 cursor-pointer hover:text-[#9FC93B] transition-colors line-clamp-1"
+                        onClick={() => handleViewDetails(event)}
+                      >
                         {event.title}
                       </h3>
-                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                        {event.description}
+                      
+                      <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                        {truncateText(event.description || '', 120)}
+                        {event.description && event.description.length > 120 && (
+                          <button 
+                            onClick={() => handleViewDetails(event)}
+                            className="text-[#9FC93B] hover:text-[#8AB82F] ml-1 font-medium inline-flex items-center"
+                          >
+                            Read more <ChevronRight className="w-3 h-3 ml-0.5" />
+                          </button>
+                        )}
                       </p>
                     </div>
 
+                    {/* Event Details */}
                     <div className="space-y-2 mb-4">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Calendar className="w-4 h-4 text-[#9FC93B]" />
-                        <span>{event.date}</span>
+                        <Calendar className="w-4 h-4 text-[#9FC93B] shrink-0" />
+                        <span>{formatDate(event.date)}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Clock className="w-4 h-4 text-[#9FC93B]" />
-                        <span>{event.time}</span>
+                        <Clock className="w-4 h-4 text-[#9FC93B] shrink-0" />
+                        <span>{event.time || 'To be confirmed'}</span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <MapPin className="w-4 h-4 text-[#9FC93B]" />
-                        <span>{event.location}</span>
+                        <MapPin className="w-4 h-4 text-[#9FC93B] shrink-0" />
+                        <span className="line-clamp-1">{event.location || 'Venue to be announced'}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Users className="w-4 h-4 text-[#9FC93B]" />
-                        <span>{event.attendees} {event.maxAttendees ? `/ ${event.maxAttendees}` : ''} attendees</span>
+                      <div className="flex items-center justify-between text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-[#9FC93B]" />
+                          <span>{event.attendees || 0} {event.maxAttendees ? `/ ${event.maxAttendees}` : ''} attendees</span>
+                        </div>
                         {eventFull && (
                           <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
                             Full
@@ -333,16 +434,25 @@ export default function EventsLoggedIn() {
                       </div>
                     </div>
 
+                    {/* Registration Status */}
                     {registered && (
                       <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3">
                         <div className="flex items-center text-green-700">
-                          <CheckCircle className="w-5 h-5 mr-2" />
+                          <CheckCircle className="w-5 h-5 mr-2 shrink-0" />
                           <span className="font-medium">You are registered for this event</span>
                         </div>
                       </div>
                     )}
 
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => handleViewDetails(event)}
+                        className="flex-1 py-2.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 group/btn"
+                      >
+                        <Eye className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
+                        View Details
+                      </button>
+                      
                       {event.status === 'upcoming' && !eventFull && (
                         <button 
                           onClick={() => registered 
@@ -352,7 +462,7 @@ export default function EventsLoggedIn() {
                           disabled={registering === event.id || cancelling === event.id}
                           className={`flex-1 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
                             registered
-                              ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                              ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 hover:border-red-300'
                               : 'bg-[#9FC93B] text-white hover:bg-[#8AB82F]'
                           }`}
                         >
@@ -369,7 +479,7 @@ export default function EventsLoggedIn() {
                           ) : registered ? (
                             <>
                               <XCircle className="w-4 h-4" />
-                              Cancel Registration
+                              Cancel
                             </>
                           ) : (
                             'Register Now'
@@ -383,6 +493,7 @@ export default function EventsLoggedIn() {
             })}
           </div>
 
+          {/* No Events Found */}
           {filteredEvents.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -408,6 +519,27 @@ export default function EventsLoggedIn() {
                 </button>
               )}
             </motion.div>
+          )}
+
+          {/* Statistics */}
+          {filteredEvents.length > 0 && (
+            <div className="mt-8 text-sm text-gray-600">
+              <p>Showing {filteredEvents.length} of {events.length} events</p>
+              <div className="flex items-center gap-4 mt-2 text-xs">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span>Upcoming</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-gray-500"></div>
+                  <span>Past</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <span>Cancelled/Full</span>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

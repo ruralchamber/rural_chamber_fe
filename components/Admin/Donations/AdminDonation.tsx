@@ -644,7 +644,7 @@ function DonationsPageContent() {
                               >
                                 <Eye className="h-4 w-4" />
                               </button>
-                              <button
+                              {/* <button
                                 onClick={() => {
                                   window.open(`https://dashboard.paystack.com/#/transactions/${donation.paymentReference}`, '_blank');
                                 }}
@@ -652,7 +652,7 @@ function DonationsPageContent() {
                                 title="View on Paystack"
                               >
                                 <ExternalLink className="h-4 w-4" />
-                              </button>
+                              </button> */}
                             </div>
                           </td>
                         </tr>
@@ -1029,7 +1029,7 @@ function DonationsPageContent() {
                 )}
 
                 <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-end border-t border-gray-200 pt-6">
-                  <button
+                  {/* <button
                     onClick={handleModalSendReceipt}
                     disabled={sendingReceipt === selectedDonation.id}
                     className="px-4 py-2 bg-[#9FC93B] text-white rounded-lg hover:bg-[#8db834] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1054,7 +1054,7 @@ function DonationsPageContent() {
                   >
                     <ExternalLink className="h-4 w-4" />
                     View on Paystack
-                  </button>
+                  </button> */}
                   <button
                     onClick={closeModal}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"

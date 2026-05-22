@@ -4,6 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import React from "react";
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -117,12 +118,14 @@ export default function MembershipEvents({ onViewAllEvents }: MembershipEventsPr
               </div>
 
               <div className="flex items-center justify-between">
-                <button
-                  className="px-6 py-2.5 text-sm font-medium rounded-md text-white bg-[#01311B] hover:bg-[#024a28] transition-colors duration-300"
-                  aria-label="Event"
-                >
-                  Event
-                </button>
+                  <Link href="/events">
+                    <button
+                      className="px-6 py-2.5 text-sm font-medium rounded-md text-white bg-[#01311B] hover:bg-[#024a28] transition-colors duration-300"
+                      aria-label="Event"
+                    >
+                      Event
+                    </button>
+                  </Link>
                 <p className="text-sm text-gray-500 font-medium">
                   March 26, 2025
                 </p>

@@ -1,4 +1,3 @@
-// components/auth/AdminProtectedRoute.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -13,17 +12,15 @@ export function AdminProtectedRoute({ children }: { children: React.ReactNode })
   useEffect(() => {
     checkAuthStatus();
     setIsChecking(false);
-  }, []);
+  }, [checkAuthStatus]);
 
   useEffect(() => {
     if (!isChecking) {
       if (!isLoggedIn) {
-        // Store the attempted admin URL
         sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
         router.push('/auth/login');
       } else if (!isAdmin) {
-        // User is logged in but not an admin
-        router.push('/admin/dashboard'); // or any other non-admin page
+        router.push('/connect-hub');
       }
     }
   }, [isLoggedIn, isAdmin, isChecking, router]);

@@ -1,17 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PAYMENT_API } from '@/app/api/endpoints/rest-api/payment/payment';
+import Link from 'next/link';
 
 type Status = 'verifying' | 'success' | 'failed';
 
 export default function RegistrationSuccessPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const reference = searchParams.get('reference');
+  const [countdown, setCountdown] = useState(30);
 
   const [status, setStatus] = useState<Status>('verifying');
 
@@ -27,13 +30,6 @@ export default function RegistrationSuccessPage() {
 
         if (res.data?.status === 'success') {
           setStatus('success');
-
-          localStorage.removeItem('user_data');
-          localStorage.removeItem('continue_registration');
-          localStorage.removeItem('email_verified');
-          localStorage.removeItem('payment_reference');
-          localStorage.removeItem('payment_registration_id');
-
           toast.success('Payment verified successfully 🎉');
         } else {
           setStatus('failed');
@@ -49,11 +45,45 @@ export default function RegistrationSuccessPage() {
     verify();
   }, [reference]);
 
+  useEffect(() => {
+    if (status === 'success') {
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (countdown === 0 && status === 'success') {
+      // Clear all auth data
+      localStorage.removeItem('user_data');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('continue_registration');
+      localStorage.removeItem('email_verified');
+      localStorage.removeItem('payment_reference');
+      localStorage.removeItem('payment_registration_id');
+      localStorage.removeItem('registration_in_progress');
+      localStorage.removeItem('registration_data');
+      localStorage.removeItem('current_registration_step');
+
+      // Redirect to login
+      router.push('/auth/login');
+    }
+  }, [countdown, status, router]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f6fbe9] via-white to-[#eef5d6] px-4">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-gray-100 p-8 text-center">
 
-        {/* ICON */}
         <div className="flex justify-center mb-6">
           {status === 'verifying' && (
             <Loader2 className="w-14 h-14 text-[#9FC93B] animate-spin" />
@@ -72,41 +102,36 @@ export default function RegistrationSuccessPage() {
           )}
         </div>
 
-        {/* TITLE */}
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
           {status === 'verifying' && 'Verifying Payment...'}
           {status === 'success' && 'Registration Successful 🎉'}
           {status === 'failed' && 'Payment Verification Failed'}
         </h1>
 
-        {/* MESSAGE */}
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-600 mb-4">
           {status === 'verifying' &&
             'Please wait while we confirm your payment.'}
 
-          {status === 'success' &&
-            'Your membership is now active. Welcome to the Rural Chamber of Commerce.'}
+          {status === 'success' && (
+            <>
+              Your membership is now active. Welcome to the Rural Chamber of Commerce.
+              <br />
+              <span className="font-semibold text-[#9FC93B]">
+                Redirecting to login in {countdown} seconds...
+              </span>
+            </>
+          )}
 
           {status === 'failed' &&
             'We could not confirm your payment. Please contact support or try again.'}
         </p>
 
-        {/* ACTIONS */}
         {status === 'success' && (
-          <div className="space-y-3">
-            <Link
-              href="/subscription/profile"
-              className="block w-full rounded-md bg-[#9FC93B] py-3 text-sm font-medium text-white hover:bg-[#8ab52e]"
-            >
-              Manage Subscriptions
-            </Link>
-
-            <Link
-              href="/settings"
-              className="block w-full rounded-md border py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Account
-            </Link>
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+            <div 
+              className="bg-green-600 h-2 rounded-full transition-all duration-1000"
+              style={{ width: `${(countdown / 30) * 100}%` }}
+            ></div>
           </div>
         )}
 
@@ -117,6 +142,27 @@ export default function RegistrationSuccessPage() {
           >
             Retry Registration
           </Link>
+        )}
+
+        {status === 'success' && (
+          <button
+            onClick={() => {
+              localStorage.removeItem('user_data');
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              localStorage.removeItem('continue_registration');
+              localStorage.removeItem('email_verified');
+              localStorage.removeItem('payment_reference');
+              localStorage.removeItem('payment_registration_id');
+              localStorage.removeItem('registration_in_progress');
+              localStorage.removeItem('registration_data');
+              localStorage.removeItem('current_registration_step');
+              router.push('/auth/login');
+            }}
+            className="mt-4 text-sm text-[#9FC93B] hover:text-[#8ab52e] underline"
+          >
+            Go to login now
+          </button>
         )}
 
         <p className="text-xs text-gray-500 mt-6">

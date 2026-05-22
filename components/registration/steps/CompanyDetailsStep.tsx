@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface CompanyData {
   companyName: string;
@@ -13,9 +14,11 @@ interface CompanyData {
 }
 
 interface CompanyDetailsStepProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
   onNext: (data: CompanyData) => void;
   onBack: () => void;
+  isLoading?: boolean;
 }
 
 const SECTORS = [
@@ -49,6 +52,7 @@ export const CompanyDetailsStep = ({
   data,
   onNext,
   onBack,
+  isLoading = false,
 }: CompanyDetailsStepProps) => {
   const [formData, setFormData] = useState<CompanyData>({
     companyName: data.companyName || "",
@@ -127,9 +131,8 @@ export const CompanyDetailsStep = ({
             placeholder="Company Name *"
             value={formData.companyName}
             onChange={(e) => handleInputChange('companyName', e.target.value)}
-            className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${
-              errors.companyName ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${errors.companyName ? 'border-red-500' : 'border-gray-300'
+              }`}
           />
           {errors.companyName && (
             <p className="text-sm text-red-500 mt-1">{errors.companyName}</p>
@@ -142,9 +145,8 @@ export const CompanyDetailsStep = ({
             <select
               value={formData.organizationType}
               onChange={(e) => handleInputChange('organizationType', e.target.value)}
-              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${
-                errors.organizationType ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${errors.organizationType ? 'border-red-500' : 'border-gray-300'
+                }`}
             >
               <option value="">Organization Type *</option>
               {ORGANIZATION_TYPES.map((type) => (
@@ -161,9 +163,8 @@ export const CompanyDetailsStep = ({
             <select
               value={formData.sector}
               onChange={(e) => handleInputChange('sector', e.target.value)}
-              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${
-                errors.sector ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${errors.sector ? 'border-red-500' : 'border-gray-300'
+                }`}
             >
               <option value="">Sector *</option>
               {SECTORS.map((sector) => (
@@ -182,15 +183,14 @@ export const CompanyDetailsStep = ({
             <input
               type="text"
               placeholder={
-                data.isSouthAfrican 
-                  ? "Registration Number * (e.g., 2024/123456/07)" 
+                data.isSouthAfrican
+                  ? "Registration Number * (e.g., 2024/123456/07)"
                   : "Registration Number *"
               }
               value={formData.registrationNumber}
               onChange={(e) => handleInputChange('registrationNumber', e.target.value)}
-              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${
-                errors.registrationNumber ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${errors.registrationNumber ? 'border-red-500' : 'border-gray-300'
+                }`}
             />
             {errors.registrationNumber && (
               <p className="text-sm text-red-500 mt-1">{errors.registrationNumber}</p>
@@ -227,9 +227,8 @@ export const CompanyDetailsStep = ({
             value={formData.notes}
             onChange={(e) => handleInputChange('notes', e.target.value)}
             rows={4}
-            className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${
-              errors.notes ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-4 py-3 border text-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-[#9FC93B] text-sm ${errors.notes ? 'border-red-500' : 'border-gray-300'
+              }`}
           />
           {errors.notes && (
             <p className="text-sm text-red-500 mt-1">{errors.notes}</p>
@@ -240,15 +239,24 @@ export const CompanyDetailsStep = ({
           <button
             type="button"
             onClick={onBack}
-            className="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-md transition-colors duration-200 text-sm"
+            disabled={isLoading}
+            className="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-md transition-colors duration-200 text-sm disabled:opacity-50"
           >
             Back
           </button>
           <button
             type="submit"
-            className="flex-1 bg-[#9FC93B] hover:bg-[#89B534] text-white font-medium py-3 rounded-md transition-colors duration-200 text-sm"
+            disabled={isLoading}
+            className="flex-1 bg-[#9FC93B] hover:bg-[#89B534] text-white font-medium py-3 rounded-md transition-colors duration-200 text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
           >
-            Continue to Membership
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Continue to Membership'
+            )}
           </button>
         </div>
       </form>
