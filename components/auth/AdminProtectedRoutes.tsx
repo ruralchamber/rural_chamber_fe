@@ -12,7 +12,7 @@ export function AdminProtectedRoute({ children }: { children: React.ReactNode })
   useEffect(() => {
     checkAuthStatus();
     setIsChecking(false);
-  }, []);
+  }, [checkAuthStatus]);
 
   useEffect(() => {
     if (!isChecking) {

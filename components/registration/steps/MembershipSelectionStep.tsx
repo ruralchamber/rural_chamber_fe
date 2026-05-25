@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { SUBSCRIPTION_API } from '@/app/api/endpoints/rest-api/subscription/subscription';
+import { Loader2 } from 'lucide-react';
 
 interface MembershipSelectionData {
   accountType: "individual" | "organizational";
@@ -14,6 +16,7 @@ interface MembershipSelectionStepProps {
   data: any;
   onNext: (data: MembershipSelectionData) => void;
   onBack: () => void;
+  isLoading?: boolean;
 }
 
 interface PlanFromAPI {
@@ -56,14 +59,14 @@ const FREE_PLAN: DisplayPlan = {
 // Format currency helper function - moved to the top
 const formatCurrency = (amount: number, period: 'month' | 'year'): string => {
   if (amount === 0) return `R0/${period}`;
-  
+
   const formattedAmount = new Intl.NumberFormat('en-ZA', {
     style: 'currency',
     currency: 'ZAR',
     minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2,
   }).format(amount);
-  
+
   return `${formattedAmount}/${period}`;
 };
 
@@ -71,13 +74,14 @@ export const MembershipSelectionStep = ({
   data,
   onNext,
   onBack,
+  isLoading = false,
 }: MembershipSelectionStepProps) => {
   const [selectedMembership, setSelectedMembership] = useState(data.membershipType || "");
   const [billingFrequency, setBillingFrequency] = useState<"monthly" | "annual">(
     data.billingFrequency || "annual"
   );
   const [plans, setPlans] = useState<PlanFromAPI[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingPlans, setIsFetchingPlans] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const accountType = data.accountType || "individual";
@@ -88,33 +92,33 @@ export const MembershipSelectionStep = ({
 
   const fetchPlans = async () => {
     try {
-      setIsLoading(true);
+      setIsFetchingPlans(true);
       setError(null);
-      
+
       const response = await SUBSCRIPTION_API.GET_SUBSCRIPTION_PLANS();
-      
+
       if (response.error) {
         throw new Error(response.message || 'Failed to load plans');
       }
 
       // Access the data correctly - response.data.data contains the actual plans
       const apiData = response.data?.data || response.data;
-      
+
       if (!apiData) {
         throw new Error('No plan data received from server');
       }
-      
+
       // Get plans based on account type
-      const apiPlans = accountType === "individual" 
+      const apiPlans = accountType === "individual"
         ? apiData.individual || []
         : apiData.organizational || [];
-      
+
       setPlans(apiPlans);
     } catch (err: any) {
       console.error('❌ [MembershipSelectionStep] Error fetching plans:', err);
       setError(err.message || 'Failed to load membership plans. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsFetchingPlans(false);
     }
   };
 
@@ -147,8 +151,8 @@ export const MembershipSelectionStep = ({
     const membershipData: MembershipSelectionData = {
       accountType,
       membershipType: selectedMembership,
-      membershipAmount: billingFrequency === "monthly" 
-        ? selectedPlan.monthlyAmount 
+      membershipAmount: billingFrequency === "monthly"
+        ? selectedPlan.monthlyAmount
         : selectedPlan.annualAmount,
       billingFrequency,
     };
@@ -156,7 +160,7 @@ export const MembershipSelectionStep = ({
     onNext(membershipData);
   };
 
-  if (isLoading) {
+  if (isFetchingPlans) {
     return (
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose Your Membership</h2>
@@ -202,9 +206,8 @@ export const MembershipSelectionStep = ({
         <div className="bg-gray-50 rounded-lg p-4">
           <h3 className="font-semibold text-gray-900 mb-3">Billing Frequency</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className={`flex items-center space-x-2 border rounded-lg p-4 hover:bg-white cursor-pointer ${
-              billingFrequency === "annual" ? "bg-white border-[#9FC93B] shadow-sm" : "border-gray-300"
-            }`}>
+            <label className={`flex items-center space-x-2 border rounded-lg p-4 hover:bg-white cursor-pointer ${billingFrequency === "annual" ? "bg-white border-[#9FC93B] shadow-sm" : "border-gray-300"
+              }`}>
               <input
                 type="radio"
                 name="billingFrequency"
@@ -218,9 +221,8 @@ export const MembershipSelectionStep = ({
                 <p className="text-sm text-gray-500">Pay once per year</p>
               </div>
             </label>
-            <label className={`flex items-center space-x-2 border rounded-lg p-4 hover:bg-white cursor-pointer ${
-              billingFrequency === "monthly" ? "bg-white border-[#9FC93B] shadow-sm" : "border-gray-300"
-            }`}>
+            <label className={`flex items-center space-x-2 border rounded-lg p-4 hover:bg-white cursor-pointer ${billingFrequency === "monthly" ? "bg-white border-[#9FC93B] shadow-sm" : "border-gray-300"
+              }`}>
               <input
                 type="radio"
                 name="billingFrequency"
@@ -251,11 +253,10 @@ export const MembershipSelectionStep = ({
               {currentMemberships.map((plan) => (
                 <label
                   key={plan.type}
-                  className={`block border rounded-lg p-4 cursor-pointer transition-all ${
-                    selectedMembership === plan.type
+                  className={`block border rounded-lg p-4 cursor-pointer transition-all ${selectedMembership === plan.type
                       ? "border-[#9FC93B] bg-green-50 shadow-sm"
                       : "border-gray-300 hover:border-gray-400"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start space-x-3">
                     <input
@@ -276,7 +277,7 @@ export const MembershipSelectionStep = ({
                         </div>
                       </div>
                       <p className="text-sm text-gray-600">{plan.description}</p>
-                      
+
                       {plan.features && plan.features.length > 0 && (
                         <div className="mt-2">
                           <p className="text-xs font-medium text-gray-500 mb-1">Includes:</p>
@@ -325,16 +326,24 @@ export const MembershipSelectionStep = ({
           <button
             type="button"
             onClick={onBack}
-            className="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-md transition-colors duration-200 text-sm"
+            disabled={isLoading}
+            className="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-md transition-colors duration-200 text-sm disabled:opacity-50"
           >
             Back
           </button>
           <button
             type="submit"
-            disabled={!selectedMembership}
-            className="flex-1 bg-[#9FC93B] hover:bg-[#89B534] text-white font-medium py-3 rounded-md transition-colors duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!selectedMembership || isLoading}
+            className="flex-1 bg-[#9FC93B] hover:bg-[#89B534] text-white font-medium py-3 rounded-md transition-colors duration-200 text-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
           >
-            {selectedPlan?.annualAmount === 0 ? 'Complete Registration' : 'Continue to Payment'}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              selectedPlan?.annualAmount === 0 ? 'Complete Registration' : 'Continue to Payment'
+            )}
           </button>
         </div>
       </form>

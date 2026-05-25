@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // ============================================
 // app/update-profile/page.tsx - FULL PROFILE EDITING
 // ============================================
@@ -79,7 +80,9 @@ export default function UpdateAccountSettings() {
           fullName: response.data.fullName || '',
           email: response.data.email || '',
           phone: response.data.cellphone || '',
-          gender: response.data.gender || '',
+          gender: response.data.gender
+            ? response.data.gender.charAt(0).toUpperCase() + response.data.gender.slice(1).toLowerCase()
+            : '',
           dateOfBirth: response.data.dateOfBirth ? new Date(response.data.dateOfBirth).toISOString().split('T')[0] : '',
           
           country: response.data.country || '',

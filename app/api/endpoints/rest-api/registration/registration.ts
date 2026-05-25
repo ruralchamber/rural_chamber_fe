@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { baseUrl } from "../../url";
 import { POST, GET } from "@/app/api/lib/client";
 import { CustomResponse } from "@/interfaces/response";
@@ -9,8 +10,8 @@ const RegistrationBaseURL = `${baseUrl}/registration`;
 export interface StartRegistrationResponse {
   user: any;
   tokenData: TokenData;
-  resumeStep?: number;       
-  isNewUser: boolean;        
+  resumeStep?: number;
+  isNewUser: boolean;
 }
 
 export interface RegistrationStepRequest {
@@ -37,113 +38,181 @@ export interface RegistrationProgressResponse {
   isComplete: boolean;
 }
 
+// Interface for the Location Search Result
+export interface LocationSearchResult {
+  id: number;
+  suburb: string;
+  city: string;
+  province: string;
+  postalCode: string;
+}
+
 export const REGISTRATION_API = {
-  START_REGISTRATION: async (userData: IUserSignUp): Promise<CustomResponse<StartRegistrationResponse>> => {
+  START_REGISTRATION: async (
+    userData: IUserSignUp,
+  ): Promise<CustomResponse<StartRegistrationResponse>> => {
     try {
       const response = await POST(`${RegistrationBaseURL}/start`, userData);
       return response;
     } catch (error: any) {
-      return error.response?.data || {
-        success: false,
-        message: error.message || "Registration failed",
-        error: true
-      };
+      return (
+        error.response?.data || {
+          success: false,
+          message: error.message || "Registration failed",
+          error: true,
+        }
+      );
     }
   },
 
-  SAVE_STEP: async (data: RegistrationStepRequest): Promise<CustomResponse<any>> => {
+  SAVE_STEP: async (
+    data: RegistrationStepRequest,
+  ): Promise<CustomResponse<any>> => {
     try {
       const response = await POST(`${RegistrationBaseURL}/step`, data);
       return response;
     } catch (error: any) {
-      return error.response?.data || {
-        success: false,
-        message: error.message || "Failed to save step",
-        error: true
-      };
+      return (
+        error.response?.data || {
+          success: false,
+          message: error.message || "Failed to save step",
+          error: true,
+        }
+      );
     }
   },
 
-  COMPLETE_REGISTRATION: async (data: CompleteRegistrationRequest): Promise<CustomResponse<any>> => {
+  COMPLETE_REGISTRATION: async (
+    data: CompleteRegistrationRequest,
+  ): Promise<CustomResponse<any>> => {
     try {
       const response = await POST(`${RegistrationBaseURL}/complete`, data);
       return response;
     } catch (error: any) {
-      return error.response?.data || {
-        success: false,
-        message: error.message || "Failed to complete registration",
-        error: true
-      };
+      return (
+        error.response?.data || {
+          success: false,
+          message: error.message || "Failed to complete registration",
+          error: true,
+        }
+      );
     }
   },
 
-  GET_PROGRESS: async (userId: number): Promise<CustomResponse<RegistrationProgressResponse>> => {
+  GET_PROGRESS: async (
+    userId: number,
+  ): Promise<CustomResponse<RegistrationProgressResponse>> => {
     try {
       const response = await GET(`${RegistrationBaseURL}/progress/${userId}`);
       return response;
     } catch (error: any) {
-      return error.response?.data || {
-        success: false,
-        message: error.message || "Failed to get registration progress",
-        error: true
-      };
+      return (
+        error.response?.data || {
+          success: false,
+          message: error.message || "Failed to get progress",
+          error: true,
+        }
+      );
     }
   },
 
   VERIFY_EMAIL: async (token: string): Promise<CustomResponse<any>> => {
     try {
-      const response = await POST(`${RegistrationBaseURL}/verify-email`, { token });
+      const response = await POST(`${RegistrationBaseURL}/verify-email`, {
+        token,
+      });
       return response;
     } catch (error: any) {
-      return error.response?.data || {
-        success: false,
-        message: error.message || "Failed to verify email",
-        error: true
-      };
+      return (
+        error.response?.data || {
+          success: false,
+          message: error.message || "Failed to verify email",
+          error: true,
+        }
+      );
     }
   },
 
   RESEND_VERIFICATION: async (email: string): Promise<CustomResponse<any>> => {
     try {
-      const response = await POST(`${RegistrationBaseURL}/resend-verification`, { email });
+      const response = await POST(
+        `${RegistrationBaseURL}/resend-verification`,
+        { email },
+      );
       return response;
     } catch (error: any) {
-      return error.response?.data || {
-        success: false,
-        message: error.message || "Failed to resend verification email",
-        error: true
-      };
+      return (
+        error.response?.data || {
+          success: false,
+          message: error.message || "Failed to resend verification email",
+          error: true,
+        }
+      );
     }
   },
 
-  CHECK_VERIFICATION_STATUS: async (email: string): Promise<CustomResponse<VerificationStatusResponse>> => {
+  CHECK_VERIFICATION_STATUS: async (
+    email: string,
+  ): Promise<CustomResponse<VerificationStatusResponse>> => {
     try {
-      const response = await POST(`${RegistrationBaseURL}/check-status`, { email });
+      const response = await POST(`${RegistrationBaseURL}/check-status`, {
+        email,
+      });
       return response;
     } catch (error: any) {
-      return error.response?.data || {
-        success: false,
-        message: error.message || "Failed to check verification status",
-        error: true
-      };
+      return (
+        error.response?.data || {
+          success: false,
+          message: error.message || "Failed to check verification status",
+          error: true,
+        }
+      );
     }
   },
-  
-  CHECK_REGISTRATION_COMPLETE: async (email: string): Promise<CustomResponse<{
-    canLogin: boolean;
-    needsToCompleteRegistration?: boolean;
-    resumeStep?: number;
-    user?: any;
-  }>> => {
+
+  CHECK_REGISTRATION_COMPLETE: async (
+    email: string,
+  ): Promise<
+    CustomResponse<{
+      canLogin: boolean;
+      needsToCompleteRegistration?: boolean;
+      resumeStep?: number;
+      user?: any;
+    }>
+  > => {
     try {
-      const response = await POST(`${baseUrl}/auth/check-registration`, { email });
+      const response = await POST(`${baseUrl}/auth/check-registration`, {
+        email,
+      });
       return response;
     } catch (error: any) {
-      return error.response?.data || {
-        success: false,
-        message: error.message || "Failed to check registration status",
-        error: true
-      };
+      return (
+        error.response?.data || {
+          success: false,
+          message: error.message || "Failed to check registration status",
+          error: true,
+        }
+      );
+    }
+  },
+
+  SEARCH_LOCATIONS: async (
+    query: string,
+  ): Promise<CustomResponse<LocationSearchResult[]>> => {
+    try {
+      const response = await GET(
+        `${RegistrationBaseURL}/locations/search?q=${encodeURIComponent(query)}`,
+      );
+      return response;
+    } catch (error: any) {
+      return (
+        error.response?.data || {
+          success: false,
+          message: error.message || "Failed to search locations",
+          error: true,
+          data: [],
+        }
+      );
     }
   },
 };

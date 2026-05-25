@@ -3,7 +3,6 @@
 // import type { CustomResponse } from "~/interfaces/response";
 // import type { IProduct } from "~/interfaces/products/product.interface";
 
-
 // export interface ICartItemBase {
 //   id: number;
 //   productId: number;
@@ -56,12 +55,12 @@
 //   if (!userId) {
 //     throw new Error("User not authenticated - no userId found in localStorage");
 //   }
-  
+
 //   const parsedUserId = parseInt(userId);
 //   if (isNaN(parsedUserId)) {
 //     throw new Error("Invalid userId in localStorage");
 //   }
-  
+
 //   console.log('📱 Using userId from localStorage:', parsedUserId);
 //   return parsedUserId;
 // };
@@ -72,7 +71,7 @@
 //         try {
 //             const userId = getUserIdFromStorage();
 //             console.log('🛒 Getting cart for userId:', userId);
-            
+
 //             const response = await GET(`${CartBaseURL}/${userId}/getCartWithItems`);
 //             console.log('✅ Cart retrieved successfully');
 //             return response;
@@ -90,7 +89,7 @@
 //         try {
 //             const userId = getUserIdFromStorage();
 //             console.log('➕ Adding item to cart:', { userId, ...data });
-            
+
 //             const response = await POST(`${CartBaseURL}/${userId}/items`, data);
 //             console.log('✅ Item added to cart successfully');
 //             return response;
@@ -107,7 +106,7 @@
 //         try {
 //             const userId = getUserIdFromStorage();
 //             console.log('🔄 Updating cart item:', { userId, itemId, ...updateData });
-            
+
 //             const response = await PUT(`${CartBaseURL}/${userId}/items/${itemId}`, updateData);
 //             console.log('✅ Cart item updated successfully');
 //             return response;
@@ -122,7 +121,7 @@
 //         try {
 //             const userId = getUserIdFromStorage();
 //             console.log('🗑️ Deleting cart item:', { userId, itemId });
-            
+
 //             const response = await DELETE(`${CartBaseURL}/${userId}/items/${itemId}`);
 //             console.log('✅ Cart item deleted successfully');
 //             return response;
@@ -137,7 +136,7 @@
 //         try {
 //             const userId = getUserIdFromStorage();
 //             console.log('🧹 Clearing cart for userId:', userId);
-            
+
 //             const response = await DELETE(`${CartBaseURL}/${userId}/clear`);
 //             console.log('✅ Cart cleared successfully');
 //             return response;
@@ -147,5 +146,4 @@
 //         }
 //     },
 
- 
 // };
