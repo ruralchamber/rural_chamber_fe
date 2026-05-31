@@ -1,14 +1,24 @@
 // app/components/learning-hub/subscription/ChangeSubscription.tsx
-"use client"
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { X, Check, Loader2, AlertCircle, ArrowRight, PauseCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
-import { SUBSCRIPTION_API, SubscriptionType } from '@/app/api/endpoints/rest-api/subscription/subscription';
-import Cookies from 'universal-cookie';
-import Image from 'next/image';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from "react";
+import {
+  X,
+  Check,
+  Loader2,
+  AlertCircle,
+  ArrowRight,
+  PauseCircle,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+  SUBSCRIPTION_API,
+  SubscriptionType,
+} from "@/app/api/endpoints/rest-api/subscription/subscription";
+import Cookies from "universal-cookie";
+import Image from "next/image";
+import { motion } from "framer-motion";
 
 const cookies = new Cookies();
 
@@ -16,11 +26,13 @@ export default function ChangeSubscription() {
   const router = useRouter();
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
-  const [selectedPlan, setSelectedPlan] = useState<SubscriptionType | ''>('');
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionType | "">("");
   const [isLoading, setIsLoading] = useState(true);
   const [isChanging, setIsChanging] = useState(false);
   const [authError, setAuthError] = useState(false);
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">(
+    "annual",
+  );
 
   useEffect(() => {
     checkAuthAndLoadSubscription();
@@ -28,20 +40,21 @@ export default function ChangeSubscription() {
 
   const checkAuthAndLoadSubscription = async () => {
     let token = null;
-    
-    const tokenCookie = cookies.get('token');
+
+    const tokenCookie = cookies.get("token");
     if (tokenCookie?.accessToken) {
       token = tokenCookie.accessToken;
     } else if (tokenCookie) {
       token = tokenCookie;
     }
-    
-    if (!token && typeof window !== 'undefined') {
-      token = localStorage.getItem('accessToken') || 
-              localStorage.getItem('access_token') ||
-              localStorage.getItem('token');
+
+    if (!token && typeof window !== "undefined") {
+      token =
+        localStorage.getItem("accessToken") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("token");
     }
-    
+
     if (!token) {
       setAuthError(true);
       setIsLoading(false);
@@ -54,35 +67,40 @@ export default function ChangeSubscription() {
   const loadSubscription = async () => {
     try {
       setIsLoading(true);
-      
+
       const response = await SUBSCRIPTION_API.GET_SUBSCRIPTION();
-      
-      console.log('📥 Subscription response:', response);
-      console.log('📊 Current subscription data:', response.data);
-      
+
+      console.log("📥 Subscription response:", response);
+      console.log("📊 Current subscription data:", response.data);
+
       if (response.error) {
-        if (response.message?.includes('401') || 
-            response.message?.includes('Unauthorized') ||
-            response.status === 401) {
+        if (
+          response.message?.includes("401") ||
+          response.message?.includes("Unauthorized") ||
+          response.status === 401
+        ) {
           setAuthError(true);
-          toast.error('Session expired. Please login again.');
+          toast.error("Session expired. Please login again.");
         } else {
-          toast.error(response.message || 'Failed to load subscription');
+          toast.error(response.message || "Failed to load subscription");
         }
       } else if (response.data) {
         setCurrentSubscription(response.data);
-        
+
         if (response.data.billingFrequency) {
           setBillingCycle(response.data.billingFrequency);
         }
       }
     } catch (error: any) {
-      console.error('Error loading subscription:', error);
-      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      console.error("Error loading subscription:", error);
+      if (
+        error.message?.includes("401") ||
+        error.message?.includes("Unauthorized")
+      ) {
         setAuthError(true);
-        toast.error('Session expired. Please login again.');
+        toast.error("Session expired. Please login again.");
       } else {
-        toast.error('An unexpected error occurred');
+        toast.error("An unexpected error occurred");
       }
     } finally {
       setIsLoading(false);
@@ -90,18 +108,19 @@ export default function ChangeSubscription() {
   };
 
   const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
+    return new Intl.NumberFormat("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
     }).format(amount);
   };
 
   const getSubscriptionTypeName = (type: string) => {
-    if (!type) return 'Free Membership';
-    
-    return type.split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+    if (!type) return "Free Membership";
+
+    return type
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   };
 
   const pricingTiers = [
@@ -233,55 +252,63 @@ export default function ChangeSubscription() {
   ];
 
   const handlePlanSelect = (planId: SubscriptionType) => {
- 
     if (planId === "free") {
-      toast.info('Free membership is automatically included');
+      toast.info("Free membership is automatically included");
       return;
     }
-    
+
     setSelectedPlan(planId);
   };
 
   const handleChangeSubscription = async () => {
     if (!selectedPlan) {
-      toast.error('Please select a new plan');
+      toast.error("Please select a new plan");
       return;
     }
 
     if (currentSubscription?.subscriptionType === selectedPlan) {
-      toast.info(`You are already on the ${getSubscriptionTypeName(selectedPlan)} plan`);
+      toast.info(
+        `You are already on the ${getSubscriptionTypeName(selectedPlan)} plan`,
+      );
       return;
     }
 
-    if (currentSubscription?.status === 'paused') {
-      toast.error('Your subscription is currently paused. Please resume it before changing plans.');
+    if (currentSubscription?.status === "paused") {
+      toast.error(
+        "Your subscription is currently paused. Please resume it before changing plans.",
+      );
       return;
     }
 
     try {
       setIsChanging(true);
-      
-      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-      const registrationId = userInfo.registrationId || userInfo.id;
+
+      const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
+      const registrationId = userInfo.registrationId;
 
       if (!registrationId) {
-        toast.error('User registration information not found');
-        router.push('/auth/login');
+        toast.error("User registration information not found");
+        router.push("/auth/login");
         return;
       }
 
-      const selectedTier = pricingTiers.find(tier => tier.id === selectedPlan);
+      const selectedTier = pricingTiers.find(
+        (tier) => tier.id === selectedPlan,
+      );
       if (!selectedTier) {
-        toast.error('Selected plan not found');
+        toast.error("Selected plan not found");
         return;
       }
 
       if (selectedTier.buttonText === "Contact Us") {
-        router.push('/contact-us');
+        router.push("/contact-us");
         return;
       }
 
-      const amount = billingCycle === "monthly" ? selectedTier.monthlyPrice : selectedTier.annualPrice;
+      const amount =
+        billingCycle === "monthly"
+          ? selectedTier.monthlyPrice
+          : selectedTier.annualPrice;
 
       const subscriptionData = {
         subscriptionType: selectedPlan,
@@ -291,17 +318,21 @@ export default function ChangeSubscription() {
         planName: selectedTier.name,
       };
 
-      sessionStorage.setItem('pendingSubscription', JSON.stringify({
-        ...subscriptionData,
-        isChangeSubscription: true, 
-        currentSubscriptionType: currentSubscription?.subscriptionType
-      }));
-      
-      router.push(`/payment?plan=${selectedPlan}&billing=${billingCycle}&change=true`);
-      
+      sessionStorage.setItem(
+        "pendingSubscription",
+        JSON.stringify({
+          ...subscriptionData,
+          isChangeSubscription: true,
+          currentSubscriptionType: currentSubscription?.subscriptionType,
+        }),
+      );
+
+      router.push(
+        `/payment?plan=${selectedPlan}&billing=${billingCycle}&change=true`,
+      );
     } catch (error: any) {
-      console.error('Error changing subscription:', error);
-      toast.error(error.message || 'Failed to change subscription');
+      console.error("Error changing subscription:", error);
+      toast.error(error.message || "Failed to change subscription");
     } finally {
       setIsChanging(false);
     }
@@ -309,43 +340,43 @@ export default function ChangeSubscription() {
 
   const handleCloseSuccess = () => {
     setShowSuccessDialog(false);
-    router.push('/subscription/profile');
+    router.push("/subscription/profile");
   };
 
   const handleLoginRedirect = () => {
-    sessionStorage.setItem('redirectAfterLogin', '/subscription/change-plan');
-    router.push('/auth/login');
+    sessionStorage.setItem("redirectAfterLogin", "/subscription/change-plan");
+    router.push("/auth/login");
   };
 
-  
   const getPlansToShow = () => {
-    console.log('🔄 Current subscription type:', currentSubscription?.subscriptionType);
-    
-  
+    console.log(
+      "🔄 Current subscription type:",
+      currentSubscription?.subscriptionType,
+    );
+
     if (!currentSubscription?.subscriptionType) {
-      console.log('📋 No current subscription, showing all paid plans');
-      return pricingTiers.filter(tier => tier.id !== "free");
+      console.log("📋 No current subscription, showing all paid plans");
+      return pricingTiers.filter((tier) => tier.id !== "free");
     }
-    
-    
-    const isOrganizational = currentSubscription?.subscriptionType?.includes('organizational');
-    console.log('🏢 Is organizational?', isOrganizational);
-    
-    
-    const filtered = pricingTiers.filter(tier => {
-     
+
+    const isOrganizational =
+      currentSubscription?.subscriptionType?.includes("organizational");
+    console.log("🏢 Is organizational?", isOrganizational);
+
+    const filtered = pricingTiers.filter((tier) => {
       if (tier.id === "free") return false;
-      
-      
+
       if (isOrganizational) {
-        return tier.id.includes('organizational');
+        return tier.id.includes("organizational");
       }
-      
-      
-      return tier.id.includes('individual');
+
+      return tier.id.includes("individual");
     });
-    
-    console.log('📋 Filtered plans:', filtered.map(p => p.name));
+
+    console.log(
+      "📋 Filtered plans:",
+      filtered.map((p) => p.name),
+    );
     return filtered;
   };
 
@@ -416,11 +447,12 @@ export default function ChangeSubscription() {
           {isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#9FC93B] mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading subscription details...</p>
+              <p className="mt-4 text-gray-600">
+                Loading subscription details...
+              </p>
             </div>
           ) : (
             <>
-            
               {currentSubscription && (
                 <div className="mb-10">
                   <h2 className="text-lg font-semibold text-gray-600 mb-3">
@@ -430,19 +462,25 @@ export default function ChangeSubscription() {
                     <div className="flex justify-between items-center">
                       <div>
                         <p className="text-2xl font-bold text-gray-700">
-                          {getSubscriptionTypeName(currentSubscription.subscriptionType)} Plan
+                          {getSubscriptionTypeName(
+                            currentSubscription.subscriptionType,
+                          )}{" "}
+                          Plan
                         </p>
                         <p className="text-gray-600 mt-2">
-                          {formatAmount(currentSubscription.amount)} / {currentSubscription.billingFrequency === 'monthly' ? 'month' : 'year'}
+                          {formatAmount(currentSubscription.amount)} /{" "}
+                          {currentSubscription.billingFrequency === "monthly"
+                            ? "month"
+                            : "year"}
                         </p>
                         {currentSubscription.status && (
                           <div className="mt-2">
-                            {currentSubscription.status === 'active' ? (
+                            {currentSubscription.status === "active" ? (
                               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                                 <Check className="w-4 h-4 mr-1" />
                                 Active
                               </span>
-                            ) : currentSubscription.status === 'paused' ? (
+                            ) : currentSubscription.status === "paused" ? (
                               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
                                 <PauseCircle className="w-4 h-4 mr-1" />
                                 Paused
@@ -459,7 +497,6 @@ export default function ChangeSubscription() {
                   </div>
                 </div>
               )}
-
 
               <div className="mb-8">
                 <h2 className="text-lg font-semibold text-gray-600 mb-4">
@@ -492,12 +529,11 @@ export default function ChangeSubscription() {
                 </p>
               </div>
 
-
               <div className="mb-10">
                 <h2 className="text-lg font-semibold text-gray-600 mb-6">
                   Select New Plan
                 </h2>
-                
+
                 {plansToShow.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -513,9 +549,13 @@ export default function ChangeSubscription() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {plansToShow.map((tier) => {
-                      const price = billingCycle === "monthly" ? tier.monthlyPrice : tier.annualPrice;
-                      const isCurrentPlan = currentSubscription?.subscriptionType === tier.id;
-                      
+                      const price =
+                        billingCycle === "monthly"
+                          ? tier.monthlyPrice
+                          : tier.annualPrice;
+                      const isCurrentPlan =
+                        currentSubscription?.subscriptionType === tier.id;
+
                       return (
                         <motion.div
                           key={tier.id}
@@ -526,24 +566,30 @@ export default function ChangeSubscription() {
                           }}
                           className="relative"
                         >
-                          <div className={`bg-white border-2 ${selectedPlan === tier.id ? 'border-[#9FC93B] bg-[#F5F9E8]' : isCurrentPlan ? 'border-[#9FC93B]' : 'border-gray-200'} rounded-lg p-6 h-full flex flex-col hover:shadow-xl transition-shadow duration-300`}>
-                            
+                          <div
+                            className={`bg-white border-2 ${selectedPlan === tier.id ? "border-[#9FC93B] bg-[#F5F9E8]" : isCurrentPlan ? "border-[#9FC93B]" : "border-gray-200"} rounded-lg p-6 h-full flex flex-col hover:shadow-xl transition-shadow duration-300`}
+                          >
                             {selectedPlan === tier.id && !isCurrentPlan && (
                               <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-medium">
                                 Selected
                               </div>
                             )}
-                            
+
                             <div className="mb-6">
                               <div className="flex items-baseline mb-2">
                                 <span className="text-4xl font-bold text-gray-900">
                                   {`R${price}`}
                                 </span>
                                 <span className="text-base text-gray-500 ml-2">
-                                  /{billingCycle === "monthly" ? "Month" : "Year"}
+                                  /
+                                  {billingCycle === "monthly"
+                                    ? "Month"
+                                    : "Year"}
                                 </span>
                               </div>
-                              <div className={`text-lg font-semibold mb-2 ${tier.color}`}>
+                              <div
+                                className={`text-lg font-semibold mb-2 ${tier.color}`}
+                              >
                                 {tier.name}
                                 {isCurrentPlan && (
                                   <span className="ml-2 text-sm bg-[#9FC93B] text-white px-2 py-0.5 rounded">
@@ -551,7 +597,9 @@ export default function ChangeSubscription() {
                                   </span>
                                 )}
                               </div>
-                              <p className="text-sm text-gray-600">{tier.subtitle}</p>
+                              <p className="text-sm text-gray-600">
+                                {tier.subtitle}
+                              </p>
 
                               <div className="h-1 relative top-2 mx-auto">
                                 <Image
@@ -570,7 +618,9 @@ export default function ChangeSubscription() {
                                   key={idx}
                                   className="flex items-start text-sm text-gray-700"
                                 >
-                                  <span className={`${tier.color} mr-3 mt-0.5 shrink-0`}>
+                                  <span
+                                    className={`${tier.color} mr-3 mt-0.5 shrink-0`}
+                                  >
                                     <Check className="w-5 h-5" />
                                   </span>
                                   <span>{feature}</span>
@@ -583,27 +633,38 @@ export default function ChangeSubscription() {
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                                 onClick={() => handlePlanSelect(tier.id)}
-                                disabled={isCurrentPlan || currentSubscription?.status === 'paused'}
+                                disabled={
+                                  isCurrentPlan ||
+                                  currentSubscription?.status === "paused"
+                                }
                                 className={`w-full px-6 py-3 rounded-md text-base font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
-                                  isCurrentPlan 
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  isCurrentPlan
+                                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                                     : selectedPlan === tier.id
-                                    ? 'bg-[#9FC93B] text-white hover:bg-[#8AB82F]'
-                                    : tier.buttonStyle
-                                } ${currentSubscription?.status === 'paused' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                      ? "bg-[#9FC93B] text-white hover:bg-[#8AB82F]"
+                                      : tier.buttonStyle
+                                } ${currentSubscription?.status === "paused" ? "opacity-50 cursor-not-allowed" : ""}`}
                               >
-                                {isCurrentPlan ? 'Current Plan' : 
-                                tier.buttonText === "Contact Us" ? "Contact Us" :
-                                selectedPlan === tier.id ? 'Selected' : 'Select Plan'}
-                                {!isCurrentPlan && selectedPlan !== tier.id && tier.buttonText !== "Contact Us" && (
-                                  <ArrowRight className="w-4 h-4" />
-                                )}
+                                {isCurrentPlan
+                                  ? "Current Plan"
+                                  : tier.buttonText === "Contact Us"
+                                    ? "Contact Us"
+                                    : selectedPlan === tier.id
+                                      ? "Selected"
+                                      : "Select Plan"}
+                                {!isCurrentPlan &&
+                                  selectedPlan !== tier.id &&
+                                  tier.buttonText !== "Contact Us" && (
+                                    <ArrowRight className="w-4 h-4" />
+                                  )}
                               </motion.button>
-                              {currentSubscription?.status === 'paused' && isCurrentPlan && (
-                                <p className="text-xs text-red-600 mt-2 text-center">
-                                  Subscription is paused. Resume to change plans.
-                                </p>
-                              )}
+                              {currentSubscription?.status === "paused" &&
+                                isCurrentPlan && (
+                                  <p className="text-xs text-red-600 mt-2 text-center">
+                                    Subscription is paused. Resume to change
+                                    plans.
+                                  </p>
+                                )}
                             </div>
                           </div>
                         </motion.div>
@@ -613,18 +674,22 @@ export default function ChangeSubscription() {
                 )}
               </div>
 
-
               {plansToShow.length > 0 && (
                 <div className="flex flex-col sm:flex-row gap-4 justify-end">
                   <button
-                    onClick={() => router.push('/subscription/settings')}
+                    onClick={() => router.push("/subscription/settings")}
                     className="border-2 border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-700 px-8 py-3 rounded-lg font-medium transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleChangeSubscription}
-                    disabled={!selectedPlan || isChanging || selectedPlan === "free" || currentSubscription?.status === 'paused'}
+                    disabled={
+                      !selectedPlan ||
+                      isChanging ||
+                      selectedPlan === "free" ||
+                      currentSubscription?.status === "paused"
+                    }
                     className="bg-[#9FC93B] hover:bg-[#8AB82F] text-white px-8 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isChanging ? (
@@ -641,17 +706,18 @@ export default function ChangeSubscription() {
                   </button>
                 </div>
               )}
-              
-              {currentSubscription?.status === 'paused' && (
+
+              {currentSubscription?.status === "paused" && (
                 <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                   <div className="flex items-center">
                     <PauseCircle className="h-5 w-5 text-red-600 mr-2" />
                     <p className="text-red-800 font-medium">
-                      Your subscription is currently paused. Please resume it from the Subscription Settings page before changing plans.
+                      Your subscription is currently paused. Please resume it
+                      from the Subscription Settings page before changing plans.
                     </p>
                   </div>
                   <button
-                    onClick={() => router.push('/subscription/profile')}
+                    onClick={() => router.push("/subscription/profile")}
                     className="mt-2 text-red-600 hover:text-red-800 text-sm font-medium"
                   >
                     Go to Subscription Settings →
@@ -685,7 +751,8 @@ export default function ChangeSubscription() {
               {selectedPlan && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4 w-full">
                   <p className="text-center text-green-800 font-medium">
-                    New Plan: {pricingTiers.find(p => p.id === selectedPlan)?.name}
+                    New Plan:{" "}
+                    {pricingTiers.find((p) => p.id === selectedPlan)?.name}
                   </p>
                 </div>
               )}
