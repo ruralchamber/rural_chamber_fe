@@ -35,23 +35,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // ✅ Wrap with useCallback to maintain stable reference
   const checkAuthStatus = useCallback(() => {
     authUtils.syncTokens();
-    
+
     const isAuth = authUtils.isAuthenticated();
     const userData = authUtils.getUserData();
-    
+
     setIsLoggedIn(isAuth);
     setUser(userData);
-    
+
     const adminStatus = userData?.role === 'admin';
     setIsAdmin(adminStatus);
-    
+
     return { isAuth, isAdmin: adminStatus, user: userData };
   }, []); // No dependencies needed since it only uses authUtils (which is stable)
 
   // Also wrap redirectBasedOnRole since it depends on checkAuthStatus and pathname
   const redirectBasedOnRole = useCallback((fromLogin: boolean = false) => {
     const { isAuth, isAdmin: adminCheck } = checkAuthStatus();
-    
+
     if (!isAuth) {
       return;
     }
@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const isOnAdminPage = pathname?.startsWith('/admin');
       const isOnLoginPage = pathname === '/auth/login';
       const isOnHomePage = pathname === '/';
-      
+
       if ((isOnHomePage || isOnLoginPage) && !isOnAdminPage) {
         console.log('🔄 Admin on homepage/login, redirecting to admin dashboard');
         router.push('/admin/dashboard');
@@ -94,14 +94,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoggedIn(false);
     setIsAdmin(false);
     setUser(null);
-    
+
     router.push('/auth/login');
   }, [router]);
 
   useEffect(() => {
     const authData = checkAuthStatus();
     setIsInitialized(true);
-    
+
     if (authData.isAuth) {
       redirectBasedOnRole();
     }
@@ -135,12 +135,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      isLoggedIn, 
+    <AuthContext.Provider value={{
+      isLoggedIn,
       isAdmin,
-      user, 
-      checkAuthStatus, 
-      logout, 
+      user,
+      checkAuthStatus,
+      logout,
       refreshUser,
       redirectBasedOnRole
     }}>

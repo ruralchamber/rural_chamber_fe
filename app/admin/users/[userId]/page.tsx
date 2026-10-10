@@ -1,19 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
   ChevronLeft,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  Building,
   CreditCard,
   UserCheck,
   AlertCircle,
-  Clock,
-  DollarSign,
   RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -25,6 +19,7 @@ function AdminUserDetailsPage() {
   const router = useRouter();
   const params = useParams();
   const userId = params.userId as string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { user } = useAuth();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +29,7 @@ function AdminUserDetailsPage() {
     if (userId) {
       fetchUserDetails();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const fetchUserDetails = async () => {
