@@ -1,30 +1,29 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { 
-  Calendar, 
-  DollarSign, 
-  LogOut, 
-  Home, 
-  Users, 
-  Mail, 
-  TrendingUp, 
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Calendar,
+  DollarSign,
+  LogOut,
+  Home,
+  Users,
+  Mail,
+  TrendingUp,
   RefreshCw,
   UserCheck,
   CreditCard,
   AlertCircle,
   UserPlus,
   Clock,
-  Shield,
   Eye,
-  Phone
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { motion } from 'framer-motion';
-import { DASHBOARD_API } from '@/app/api/endpoints/rest-api/dashboard/dashboard';
-import { useAuth } from '@/context/AuthContext';
-import { AdminProtectedRoute } from '@/components/auth/AdminProtectedRoutes';
+} from "lucide-react";
+import { toast } from "sonner";
+import { motion } from "framer-motion";
+import { DASHBOARD_API } from "@/app/api/endpoints/rest-api/dashboard/dashboard";
+import { useAuth } from "@/context/AuthContext";
+import { AdminProtectedRoute } from "@/components/auth/AdminProtectedRoutes";
 
 function AdminDashboardContent() {
   const router = useRouter();
@@ -32,7 +31,9 @@ function AdminDashboardContent() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'users' | 'renewals'>('overview');
+  const [selectedTab, setSelectedTab] = useState<
+    "overview" | "users" | "renewals"
+  >("overview");
 
   useEffect(() => {
     fetchDashboardStats();
@@ -42,15 +43,15 @@ function AdminDashboardContent() {
     try {
       setLoading(true);
       const response = await DASHBOARD_API.GET_DASHBOARD_STATS();
-      
+
       if (!response.error && response.data) {
         setStats(response.data);
       } else {
-        toast.error('Failed to load dashboard statistics');
+        toast.error("Failed to load dashboard statistics");
       }
     } catch (error) {
-      console.error('Failed to fetch dashboard stats:', error);
-      toast.error('Failed to load dashboard statistics');
+      console.error("Failed to fetch dashboard stats:", error);
+      toast.error("Failed to load dashboard statistics");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -64,16 +65,16 @@ function AdminDashboardContent() {
 
   const handleLogout = () => {
     logout();
-    toast.success('Logged out successfully');
+    toast.success("Logged out successfully");
   };
 
   const formatCurrency = (amount: number) => {
     if (isNaN(amount) || amount === null || amount === undefined) {
-      return 'R 0';
+      return "R 0";
     }
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
+    return new Intl.NumberFormat("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -81,38 +82,39 @@ function AdminDashboardContent() {
 
   const formatNumber = (num: number) => {
     if (isNaN(num) || num === null || num === undefined) {
-      return '0';
+      return "0";
     }
-    return new Intl.NumberFormat('en-ZA').format(num);
+    return new Intl.NumberFormat("en-ZA").format(num);
   };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-ZA', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-ZA", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
   const getSubscriptionTierColor = (tier: string) => {
-    if (!tier) return 'bg-gray-100 text-gray-800';
-    if (tier.includes('platinum')) return 'bg-purple-100 text-purple-800';
-    if (tier.includes('gold')) return 'bg-yellow-100 text-yellow-800';
-    if (tier.includes('silver')) return 'bg-gray-100 text-gray-800';
-    return 'bg-blue-100 text-blue-800';
+    if (!tier) return "bg-gray-100 text-gray-800";
+    if (tier.includes("platinum")) return "bg-purple-100 text-purple-800";
+    if (tier.includes("gold")) return "bg-yellow-100 text-yellow-800";
+    if (tier.includes("silver")) return "bg-gray-100 text-gray-800";
+    return "bg-blue-100 text-blue-800";
   };
 
   const getSubscriptionTierLabel = (tier: string) => {
-    if (!tier || tier === 'free') return 'Free';
-    return tier.replace(/_/g, ' ');
+    if (!tier || tier === "free") return "Free";
+    return tier.replace(/_/g, " ");
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getRenewalStatusColor = (days: number) => {
-    if (days < 0) return 'text-red-600 bg-red-50';
-    if (days <= 7) return 'text-orange-600 bg-orange-50';
-    if (days <= 30) return 'text-yellow-600 bg-yellow-50';
-    return 'text-green-600 bg-green-50';
+    if (days < 0) return "text-red-600 bg-red-50";
+    if (days <= 7) return "text-orange-600 bg-orange-50";
+    if (days <= 30) return "text-yellow-600 bg-yellow-50";
+    return "text-green-600 bg-green-50";
   };
 
   const menuItems = [
@@ -122,7 +124,7 @@ function AdminDashboardContent() {
       icon: Calendar,
       color: "bg-blue-500",
       hoverColor: "hover:bg-blue-600",
-      onClick: () => router.push('/admin/events')
+      onClick: () => router.push("/admin/events"),
     },
     {
       title: "Donations Management",
@@ -130,7 +132,7 @@ function AdminDashboardContent() {
       icon: DollarSign,
       color: "bg-green-500",
       hoverColor: "hover:bg-green-600",
-      onClick: () => router.push('/admin/donations')
+      onClick: () => router.push("/admin/donations"),
     },
     {
       title: "Users Management",
@@ -138,7 +140,7 @@ function AdminDashboardContent() {
       icon: Users,
       color: "bg-purple-500",
       hoverColor: "hover:bg-purple-600",
-      onClick: () => router.push('/admin/users')
+      onClick: () => router.push("/admin/users"),
     },
     {
       title: "Subscribers",
@@ -146,8 +148,8 @@ function AdminDashboardContent() {
       icon: Mail,
       color: "bg-amber-500",
       hoverColor: "hover:bg-amber-600",
-      onClick: () => toast.info('Coming soon!')
-    }
+      onClick: () => toast.info("Coming soon!"),
+    },
   ];
 
   if (loading) {
@@ -163,12 +165,17 @@ function AdminDashboardContent() {
 
   const upcomingRenewals = stats?.users?.upcomingRenewals || [];
   const totalRenewalValue = upcomingRenewals.reduce((sum: number, r: any) => {
-    const amount = typeof r.amount === 'number' ? r.amount : parseFloat(r.amount) || 0;
+    const amount =
+      typeof r.amount === "number" ? r.amount : parseFloat(r.amount) || 0;
     return sum + amount;
   }, 0);
 
-  const renewalsThisWeek = upcomingRenewals.filter((r: any) => r.daysUntilRenewal <= 7 && r.daysUntilRenewal >= 0).length;
-  const renewalsThisMonth = upcomingRenewals.filter((r: any) => r.daysUntilRenewal <= 30 && r.daysUntilRenewal >= 0).length;
+  const renewalsThisWeek = upcomingRenewals.filter(
+    (r: any) => r.daysUntilRenewal <= 7 && r.daysUntilRenewal >= 0,
+  ).length;
+  const renewalsThisMonth = upcomingRenewals.filter(
+    (r: any) => r.daysUntilRenewal <= 30 && r.daysUntilRenewal >= 0,
+  ).length;
 
   return (
     <div className="min-h-screen bg-linear-to-b from-gray-50 to-gray-100">
@@ -180,13 +187,15 @@ function AdminDashboardContent() {
                 <span className="text-white font-bold text-lg">A</span>
               </div>
               <div className="ml-3">
-                <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
+                <h1 className="text-xl font-bold text-gray-900">
+                  Admin Dashboard
+                </h1>
                 <p className="text-sm text-gray-500">
-                  Welcome back, {user?.fullName || 'Admin'}
+                  Welcome back, {user?.fullName || "Admin"}
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleRefresh}
@@ -194,18 +203,22 @@ function AdminDashboardContent() {
                 className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
                 title="Refresh Data"
               >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline text-sm font-medium">Refresh</span>
+                <RefreshCw
+                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                />
+                <span className="hidden sm:inline text-sm font-medium">
+                  Refresh
+                </span>
               </button>
-              
+
               <button
-                onClick={() => router.push('/connect-hub')}
+                onClick={() => router.push("/connect-hub")}
                 className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <Home className="h-4 w-4" />
                 <span className="text-sm font-medium">Visit Site</span>
               </button>
-              
+
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
@@ -218,31 +231,31 @@ function AdminDashboardContent() {
 
           <div className="flex space-x-4 mt-2">
             <button
-              onClick={() => setSelectedTab('overview')}
+              onClick={() => setSelectedTab("overview")}
               className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                selectedTab === 'overview'
-                  ? 'text-[#01311B] border-b-2 border-[#9FC93B]'
-                  : 'text-gray-500 hover:text-gray-700'
+                selectedTab === "overview"
+                  ? "text-[#01311B] border-b-2 border-[#9FC93B]"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               Overview
             </button>
             <button
-              onClick={() => setSelectedTab('users')}
+              onClick={() => setSelectedTab("users")}
               className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                selectedTab === 'users'
-                  ? 'text-[#01311B] border-b-2 border-[#9FC93B]'
-                  : 'text-gray-500 hover:text-gray-700'
+                selectedTab === "users"
+                  ? "text-[#01311B] border-b-2 border-[#9FC93B]"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               Users & Subscriptions
             </button>
             <button
-              onClick={() => setSelectedTab('renewals')}
+              onClick={() => setSelectedTab("renewals")}
               className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                selectedTab === 'renewals'
-                  ? 'text-[#01311B] border-b-2 border-[#9FC93B]'
-                  : 'text-gray-500 hover:text-gray-700'
+                selectedTab === "renewals"
+                  ? "text-[#01311B] border-b-2 border-[#9FC93B]"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               Upcoming Renewals
@@ -260,18 +273,25 @@ function AdminDashboardContent() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                {selectedTab === 'overview' && 'Welcome to Admin Panel'}
-                {selectedTab === 'users' && 'User Management Overview'}
-                {selectedTab === 'renewals' && 'Subscription Renewals'}
+                {selectedTab === "overview" && "Welcome to Admin Panel"}
+                {selectedTab === "users" && "User Management Overview"}
+                {selectedTab === "renewals" && "Subscription Renewals"}
               </h2>
               <p className="text-gray-600 mt-2">
-                {selectedTab === 'overview' && 'Manage your website content, events, and donations from one place'}
-                {selectedTab === 'users' && 'View and manage registered users and their subscription details'}
-                {selectedTab === 'renewals' && 'Track upcoming subscription renewals and payment dates'}
+                {selectedTab === "overview" &&
+                  "Manage your website content, events, and donations from one place"}
+                {selectedTab === "users" &&
+                  "View and manage registered users and their subscription details"}
+                {selectedTab === "renewals" &&
+                  "Track upcoming subscription renewals and payment dates"}
               </p>
             </div>
             <div className="text-sm text-gray-500">
-              Last updated: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              Last updated:{" "}
+              {new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </div>
           </div>
         </motion.div>
@@ -296,7 +316,8 @@ function AdminDashboardContent() {
             <div className="flex items-center mt-4">
               <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
               <p className="text-xs text-gray-500">
-                From {formatNumber(stats?.donations?.totalDonations || 0)} donations
+                From {formatNumber(stats?.donations?.totalDonations || 0)}{" "}
+                donations
               </p>
             </div>
           </motion.div>
@@ -320,7 +341,12 @@ function AdminDashboardContent() {
             </div>
             <div className="mt-4">
               <p className="text-xs text-gray-500">
-                {formatNumber(stats?.users?.totals?.verifiedUsers || 0)} verified • {formatNumber(stats?.users?.totals?.completedRegistrations || 0)} completed
+                {formatNumber(stats?.users?.totals?.verifiedUsers || 0)}{" "}
+                verified •{" "}
+                {formatNumber(
+                  stats?.users?.totals?.completedRegistrations || 0,
+                )}{" "}
+                completed
               </p>
             </div>
           </motion.div>
@@ -374,16 +400,18 @@ function AdminDashboardContent() {
           </motion.div>
         </div>
 
-        {selectedTab === 'overview' && (
+        {selectedTab === "overview" && (
           <>
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Quick Actions
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <motion.div
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className="bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6 cursor-pointer"
-                  onClick={() => router.push('/admin/events')}
+                  onClick={() => router.push("/admin/events")}
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -398,12 +426,14 @@ function AdminDashboardContent() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className="bg-linear-to-r from-purple-500 to-purple-600 text-white rounded-xl shadow-lg p-6 cursor-pointer"
-                  onClick={() => router.push('/admin/users')}
+                  onClick={() => router.push("/admin/users")}
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-xl font-bold">Manage Users</h4>
-                      <p className="text-purple-100 mt-1">View all registered members</p>
+                      <p className="text-purple-100 mt-1">
+                        View all registered members
+                      </p>
                     </div>
                     <Users className="h-8 w-8" />
                   </div>
@@ -412,7 +442,9 @@ function AdminDashboardContent() {
             </div>
 
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Management Sections</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Management Sections
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {menuItems.map((item, index) => (
                   <motion.div
@@ -431,15 +463,33 @@ function AdminDashboardContent() {
                           <item.icon className="h-6 w-6 text-white" />
                         </div>
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-2">{item.title}</h4>
-                      <p className="text-sm text-gray-600">{item.description}</p>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                        {item.title}
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        {item.description}
+                      </p>
                     </div>
-                    <div className={`px-6 py-3 ${item.color} bg-opacity-10 border-t border-gray-100`}>
+                    <div
+                      className={`px-6 py-3 ${item.color} bg-opacity-10 border-t border-gray-100`}
+                    >
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Click to open</span>
+                        <span className="text-sm font-medium text-gray-700">
+                          Click to open
+                        </span>
                         <div className="text-gray-400">
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                          <svg
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M14 5l7 7m0 0l-7 7m7-7H3"
+                            />
                           </svg>
                         </div>
                       </div>
@@ -451,76 +501,106 @@ function AdminDashboardContent() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Donations by Purpose</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Donations by Purpose
+                </h3>
                 <div className="space-y-4">
                   {stats?.donations?.donationsByPurpose?.length > 0 ? (
-                    stats.donations.donationsByPurpose.map((purpose: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-700 capitalize">
-                              {purpose.purpose.replace('-', ' ')}
-                            </span>
-                            <span className="text-sm font-semibold text-green-600">
-                              {formatCurrency(purpose.totalAmount)}
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-green-500 h-2 rounded-full" 
-                              style={{ 
-                                width: `${(purpose.totalAmount / (stats.donations.totalAmount || 1)) * 100}%` 
-                              }}
-                            ></div>
-                          </div>
-                          <div className="flex justify-between mt-1">
-                            <span className="text-xs text-gray-500">{purpose.count} donations</span>
-                            <span className="text-xs text-gray-500">
-                              {((purpose.totalAmount / (stats.donations.totalAmount || 1)) * 100).toFixed(1)}%
-                            </span>
+                    stats.donations.donationsByPurpose.map(
+                      (purpose: any, index: number) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium text-gray-700 capitalize">
+                                {purpose.purpose.replace("-", " ")}
+                              </span>
+                              <span className="text-sm font-semibold text-green-600">
+                                {formatCurrency(purpose.totalAmount)}
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-green-500 h-2 rounded-full"
+                                style={{
+                                  width: `${(purpose.totalAmount / (stats.donations.totalAmount || 1)) * 100}%`,
+                                }}
+                              ></div>
+                            </div>
+                            <div className="flex justify-between mt-1">
+                              <span className="text-xs text-gray-500">
+                                {purpose.count} donations
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {(
+                                  (purpose.totalAmount /
+                                    (stats.donations.totalAmount || 1)) *
+                                  100
+                                ).toFixed(1)}
+                                %
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      ),
+                    )
                   ) : (
-                    <p className="text-gray-500 text-center py-4">No donation data available</p>
+                    <p className="text-gray-500 text-center py-4">
+                      No donation data available
+                    </p>
                   )}
                 </div>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Subscription Distribution</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Subscription Distribution
+                </h3>
                 <div className="space-y-4">
                   {stats?.users?.breakdowns?.bySubscriptionTier?.length > 0 ? (
-                    stats.users.breakdowns.bySubscriptionTier.map((tier: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-700 capitalize">
-                              {tier.tier.replace('_', ' ')}
-                            </span>
-                            <span className="text-sm font-semibold text-purple-600">
-                              {tier.count} members
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-purple-500 h-2 rounded-full" 
-                              style={{ 
-                                width: `${(tier.count / (stats.users.totals.totalUsers || 1)) * 100}%` 
-                              }}
-                            ></div>
-                          </div>
-                          <div className="flex justify-between mt-1">
-                            <span className="text-xs text-gray-500">
-                              {((tier.count / (stats.users.totals.totalUsers || 1)) * 100).toFixed(1)}%
-                            </span>
+                    stats.users.breakdowns.bySubscriptionTier.map(
+                      (tier: any, index: number) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium text-gray-700 capitalize">
+                                {tier.tier.replace("_", " ")}
+                              </span>
+                              <span className="text-sm font-semibold text-purple-600">
+                                {tier.count} members
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-purple-500 h-2 rounded-full"
+                                style={{
+                                  width: `${(tier.count / (stats.users.totals.totalUsers || 1)) * 100}%`,
+                                }}
+                              ></div>
+                            </div>
+                            <div className="flex justify-between mt-1">
+                              <span className="text-xs text-gray-500">
+                                {(
+                                  (tier.count /
+                                    (stats.users.totals.totalUsers || 1)) *
+                                  100
+                                ).toFixed(1)}
+                                %
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      ),
+                    )
                   ) : (
-                    <p className="text-gray-500 text-center py-4">No subscription data available</p>
+                    <p className="text-gray-500 text-center py-4">
+                      No subscription data available
+                    </p>
                   )}
                 </div>
               </div>
@@ -528,7 +608,7 @@ function AdminDashboardContent() {
           </>
         )}
 
-        {selectedTab === 'users' && (
+        {selectedTab === "users" && (
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
@@ -558,16 +638,25 @@ function AdminDashboardContent() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  {((stats?.users?.totals?.verifiedUsers / (stats?.users?.totals?.totalUsers || 1)) * 100).toFixed(1)}% of total
+                  {(
+                    (stats?.users?.totals?.verifiedUsers /
+                      (stats?.users?.totals?.totalUsers || 1)) *
+                    100
+                  ).toFixed(1)}
+                  % of total
                 </p>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">Completed Registrations</p>
+                    <p className="text-sm text-gray-500">
+                      Completed Registrations
+                    </p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {formatNumber(stats?.users?.totals?.completedRegistrations || 0)}
+                      {formatNumber(
+                        stats?.users?.totals?.completedRegistrations || 0,
+                      )}
                     </p>
                   </div>
                   <div className="p-3 bg-purple-50 rounded-lg">
@@ -579,9 +668,13 @@ function AdminDashboardContent() {
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">Active Subscriptions</p>
+                    <p className="text-sm text-gray-500">
+                      Active Subscriptions
+                    </p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {formatNumber(stats?.users?.totals?.activeSubscriptions || 0)}
+                      {formatNumber(
+                        stats?.users?.totals?.activeSubscriptions || 0,
+                      )}
                     </p>
                   </div>
                   <div className="p-3 bg-amber-50 rounded-lg">
@@ -593,38 +686,57 @@ function AdminDashboardContent() {
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <h3 className="text-lg font-semibold text-gray-900">Recent Users</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Recent Users
+                </h3>
               </div>
-              
               <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subscription</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Subscription
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Joined
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {stats?.users?.recentUsers?.map((user: any) => (
-                      <tr 
-                        key={user.id} 
-                        className="hover:bg-gray-50 cursor-pointer" 
+                      <tr
+                        key={user.id}
+                        className="hover:bg-gray-50 cursor-pointer"
                         onClick={() => router.push(`/admin/users/${user.id}`)}
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{user.fullName}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {user.fullName}
+                          </div>
                           {user.membershipNumber && (
-                            <div className="text-xs text-gray-500">ID: {user.membershipNumber}</div>
+                            <div className="text-xs text-gray-500">
+                              ID: {user.membershipNumber}
+                            </div>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">{user.email}</div>
+                          <div className="text-sm text-gray-500">
+                            {user.email}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(user.subscriptionTier)}`}>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(user.subscriptionTier)}`}
+                          >
                             {getSubscriptionTierLabel(user.subscriptionTier)}
                           </span>
                         </td>
@@ -654,33 +766,38 @@ function AdminDashboardContent() {
 
               <div className="block md:hidden divide-y divide-gray-200">
                 {stats?.users?.recentUsers?.map((user: any) => (
-                  <div 
+                  <div
                     key={user.id}
                     onClick={() => router.push(`/admin/users/${user.id}`)}
                     className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h3 className="font-medium text-gray-900">{user.fullName}</h3>
+                        <h3 className="font-medium text-gray-900">
+                          {user.fullName}
+                        </h3>
                         {user.membershipNumber && (
-                          <p className="text-xs text-gray-500 mt-0.5">ID: {user.membershipNumber}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            ID: {user.membershipNumber}
+                          </p>
                         )}
                       </div>
                       <Eye className="h-5 w-5 text-gray-400" />
                     </div>
-                    
+
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center text-gray-600">
-                        <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <Mail className="h-4 w-4 mr-2 shrink-0" />
                         <span className="truncate">{user.email}</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between pt-2">
                         <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(user.subscriptionTier)}`}>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(user.subscriptionTier)}`}
+                          >
                             {getSubscriptionTierLabel(user.subscriptionTier)}
                           </span>
-                          
                           {user.emailVerified ? (
                             <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full flex items-center gap-1">
                               <UserCheck className="h-3 w-3" />
@@ -693,7 +810,7 @@ function AdminDashboardContent() {
                             </span>
                           )}
                         </div>
-                        
+
                         <div className="flex items-center text-xs text-gray-500">
                           <Calendar className="h-3 w-3 mr-1" />
                           {formatDate(user.createdAt)}
@@ -703,10 +820,10 @@ function AdminDashboardContent() {
                   </div>
                 ))}
               </div>
-              
+
               <div className="px-6 py-4 border-t border-gray-200">
                 <button
-                  onClick={() => router.push('/admin/users')}
+                  onClick={() => router.push("/admin/users")}
                   className="text-sm text-[#01311B] hover:text-[#9FC93B] font-medium"
                 >
                   View all users →
@@ -716,26 +833,44 @@ function AdminDashboardContent() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Users by Subscription Tier</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Users by Subscription Tier
+                </h3>
                 <div className="space-y-4">
-                  {stats?.users?.breakdowns?.bySubscriptionTier?.map((tier: any) => (
-                    <div key={tier.tier} className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700 capitalize">
-                        {getSubscriptionTierLabel(tier.tier)}
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">{tier.count}</span>
-                    </div>
-                  ))}
+                  {stats?.users?.breakdowns?.bySubscriptionTier?.map(
+                    (tier: any) => (
+                      <div
+                        key={tier.tier}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="text-sm font-medium text-gray-700 capitalize">
+                          {getSubscriptionTierLabel(tier.tier)}
+                        </span>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {tier.count}
+                        </span>
+                      </div>
+                    ),
+                  )}
                 </div>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Types</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Account Types
+                </h3>
                 <div className="space-y-4">
                   {stats?.registrations?.accountTypes?.map((type: any) => (
-                    <div key={type.type} className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700 capitalize">{type.type}</span>
-                      <span className="text-sm font-semibold text-gray-900">{type.count}</span>
+                    <div
+                      key={type.type}
+                      className="flex items-center justify-between"
+                    >
+                      <span className="text-sm font-medium text-gray-700 capitalize">
+                        {type.type}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {type.count}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -744,7 +879,7 @@ function AdminDashboardContent() {
           </div>
         )}
 
-        {selectedTab === 'renewals' && (
+        {selectedTab === "renewals" && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
@@ -792,35 +927,55 @@ function AdminDashboardContent() {
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <h3 className="text-lg font-semibold text-gray-900">Upcoming Subscription Renewals</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Upcoming Subscription Renewals
+                </h3>
               </div>
-              
+
               <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subscription</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Billing</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Left</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Subscription
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Next Billing
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Days Left
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {upcomingRenewals.map((renewal: any) => (
-                      <tr 
-                        key={renewal.userId} 
+                      <tr
+                        key={renewal.userId}
                         className="hover:bg-gray-50 cursor-pointer"
-                        onClick={() => router.push(`/admin/users/${renewal.userId}`)}
+                        onClick={() =>
+                          router.push(`/admin/users/${renewal.userId}`)
+                        }
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{renewal.userName}</div>
-                            <div className="text-xs text-gray-500">{renewal.userEmail}</div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {renewal.userName}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {renewal.userEmail}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(renewal.subscriptionType)}`}>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(renewal.subscriptionType)}`}
+                          >
                             {getSubscriptionTierLabel(renewal.subscriptionType)}
                           </span>
                         </td>
@@ -835,14 +990,19 @@ function AdminDashboardContent() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`text-sm font-medium ${
-                            renewal.daysUntilRenewal < 0 ? 'text-red-600' : 
-                            renewal.daysUntilRenewal <= 7 ? 'text-orange-600' : 
-                            renewal.daysUntilRenewal <= 30 ? 'text-yellow-600' :
-                            'text-green-600'
-                          }`}>
-                            {renewal.daysUntilRenewal < 0 
-                              ? `${Math.abs(renewal.daysUntilRenewal)} days overdue` 
+                          <div
+                            className={`text-sm font-medium ${
+                              renewal.daysUntilRenewal < 0
+                                ? "text-red-600"
+                                : renewal.daysUntilRenewal <= 7
+                                  ? "text-orange-600"
+                                  : renewal.daysUntilRenewal <= 30
+                                    ? "text-yellow-600"
+                                    : "text-green-600"
+                            }`}
+                          >
+                            {renewal.daysUntilRenewal < 0
+                              ? `${Math.abs(renewal.daysUntilRenewal)} days overdue`
                               : `${renewal.daysUntilRenewal} days`}
                           </div>
                         </td>
@@ -854,42 +1014,55 @@ function AdminDashboardContent() {
 
               <div className="block md:hidden divide-y divide-gray-200">
                 {upcomingRenewals.map((renewal: any) => (
-                  <div 
+                  <div
                     key={renewal.userId}
-                    onClick={() => router.push(`/admin/users/${renewal.userId}`)}
+                    onClick={() =>
+                      router.push(`/admin/users/${renewal.userId}`)
+                    }
                     className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h3 className="font-medium text-gray-900">{renewal.userName}</h3>
-                        <p className="text-xs text-gray-500 mt-0.5">{renewal.userEmail}</p>
+                        <h3 className="font-medium text-gray-900">
+                          {renewal.userName}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {renewal.userEmail}
+                        </p>
                       </div>
                       <Eye className="h-5 w-5 text-gray-400" />
                     </div>
-                    
+
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(renewal.subscriptionType)}`}>
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(renewal.subscriptionType)}`}
+                        >
                           {getSubscriptionTierLabel(renewal.subscriptionType)}
                         </span>
                         <span className="text-sm font-semibold text-gray-900">
                           {formatCurrency(renewal.amount)}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center text-gray-500">
                           <Calendar className="h-4 w-4 mr-1" />
                           {formatDate(renewal.nextBillingDate)}
                         </div>
-                        <div className={`text-sm font-medium ${
-                          renewal.daysUntilRenewal < 0 ? 'text-red-600' : 
-                          renewal.daysUntilRenewal <= 7 ? 'text-orange-600' : 
-                          renewal.daysUntilRenewal <= 30 ? 'text-yellow-600' :
-                          'text-green-600'
-                        }`}>
-                          {renewal.daysUntilRenewal < 0 
-                            ? `${Math.abs(renewal.daysUntilRenewal)} days overdue` 
+                        <div
+                          className={`text-sm font-medium ${
+                            renewal.daysUntilRenewal < 0
+                              ? "text-red-600"
+                              : renewal.daysUntilRenewal <= 7
+                                ? "text-orange-600"
+                                : renewal.daysUntilRenewal <= 30
+                                  ? "text-yellow-600"
+                                  : "text-green-600"
+                          }`}
+                        >
+                          {renewal.daysUntilRenewal < 0
+                            ? `${Math.abs(renewal.daysUntilRenewal)} days overdue`
                             : `${renewal.daysUntilRenewal} days`}
                         </div>
                       </div>
@@ -907,13 +1080,12 @@ function AdminDashboardContent() {
           <div className="flex flex-col md:flex-row md:items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">
-                © {new Date().getFullYear()} Rural Chamber Admin Dashboard. All rights reserved.
+                © {new Date().getFullYear()} Rural Chamber Admin Dashboard. All
+                rights reserved.
               </p>
             </div>
             <div className="flex items-center gap-6 mt-4 md:mt-0">
-              <p className="text-sm text-gray-600">
-                Data updated in real-time
-              </p>
+              <p className="text-sm text-gray-600">Data updated in real-time</p>
             </div>
           </div>
         </div>

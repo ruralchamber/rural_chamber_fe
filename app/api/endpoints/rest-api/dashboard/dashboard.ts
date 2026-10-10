@@ -99,5 +99,5 @@ export const DASHBOARD_API = {
     } catch (error) {
       throw error;
     }
-  }
+  },
 };

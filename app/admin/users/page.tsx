@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { 
-  Users, 
-  Search, 
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Search,
   ChevronLeft,
   RefreshCw,
   UserCheck,
@@ -12,12 +13,12 @@ import {
   Mail,
   Calendar,
   Phone,
-  Eye
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { useAuth } from '@/context/AuthContext';
-import { AdminProtectedRoute } from '@/components/auth/AdminProtectedRoutes';
-import { ADMIN_USERS_API } from '@/app/api/endpoints/rest-api/dashboard/users';
+  Eye,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { AdminProtectedRoute } from "@/components/auth/AdminProtectedRoutes";
+import { ADMIN_USERS_API } from "@/app/api/endpoints/rest-api/dashboard/users";
 
 function AdminUsersPage() {
   const router = useRouter();
@@ -26,15 +27,16 @@ function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [navigating, setNavigating] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTier, setSelectedTier] = useState<string>('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTier, setSelectedTier] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
 
   useEffect(() => {
     fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, selectedTier, selectedStatus]);
 
   const fetchUsers = async () => {
@@ -45,19 +47,19 @@ function AdminUsersPage() {
         limit: 20,
         subscriptionTier: selectedTier,
         emailVerified: selectedStatus,
-        search: searchTerm
+        search: searchTerm,
       });
-      
+
       if (!response.error && response.data) {
         setUsers(response.data.users || []);
         setTotalPages(response.data.totalPages || 1);
         setTotalUsers(response.data.total || 0);
       } else {
-        toast.error(response.message || 'Failed to load users');
+        toast.error(response.message || "Failed to load users");
       }
     } catch (error) {
-      console.error('Failed to fetch users:', error);
-      toast.error('Failed to load users');
+      console.error("Failed to fetch users:", error);
+      toast.error("Failed to load users");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -81,50 +83,50 @@ function AdminUsersPage() {
   };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    
+    if (!dateString) return "N/A";
+
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'N/A';
-      
-      return date.toLocaleDateString('en-ZA', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
+      if (isNaN(date.getTime())) return "N/A";
+
+      return date.toLocaleDateString("en-ZA", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
       });
     } catch (error) {
-      return 'N/A';
+      return "N/A";
     }
   };
 
   const getSubscriptionTierColor = (tier: string) => {
-    if (!tier || tier === 'free') return 'bg-gray-100 text-gray-800';
-    if (tier.includes('platinum')) return 'bg-purple-100 text-purple-800';
-    if (tier.includes('gold')) return 'bg-yellow-100 text-yellow-800';
-    if (tier.includes('silver')) return 'bg-gray-100 text-gray-800';
-    return 'bg-blue-100 text-blue-800';
+    if (!tier || tier === "free") return "bg-gray-100 text-gray-800";
+    if (tier.includes("platinum")) return "bg-purple-100 text-purple-800";
+    if (tier.includes("gold")) return "bg-yellow-100 text-yellow-800";
+    if (tier.includes("silver")) return "bg-gray-100 text-gray-800";
+    return "bg-blue-100 text-blue-800";
   };
 
   const getSubscriptionTierLabel = (tier: string) => {
-    if (!tier || tier === 'free') return 'Free';
-    return tier.replace(/_/g, ' ');
+    if (!tier || tier === "free") return "Free";
+    return tier.replace(/_/g, " ");
   };
 
   const subscriptionTiers = [
-    { value: '', label: 'All Tiers' },
-    { value: 'free', label: 'Free' },
-    { value: 'individual_silver', label: 'Individual Silver' },
-    { value: 'individual_gold', label: 'Individual Gold' },
-    { value: 'individual_platinum', label: 'Individual Platinum' },
-    { value: 'organizational_silver', label: 'Organizational Silver' },
-    { value: 'organizational_gold', label: 'Organizational Gold' },
-    { value: 'organizational_platinum', label: 'Organizational Platinum' },
+    { value: "", label: "All Tiers" },
+    { value: "free", label: "Free" },
+    { value: "individual_silver", label: "Individual Silver" },
+    { value: "individual_gold", label: "Individual Gold" },
+    { value: "individual_platinum", label: "Individual Platinum" },
+    { value: "organizational_silver", label: "Organizational Silver" },
+    { value: "organizational_gold", label: "Organizational Gold" },
+    { value: "organizational_platinum", label: "Organizational Platinum" },
   ];
 
   const statusOptions = [
-    { value: '', label: 'All Status' },
-    { value: 'true', label: 'Verified' },
-    { value: 'false', label: 'Pending' },
+    { value: "", label: "All Status" },
+    { value: "true", label: "Verified" },
+    { value: "false", label: "Pending" },
   ];
 
   if (navigating) {
@@ -145,13 +147,15 @@ function AdminUsersPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <button
-                onClick={() => router.push('/admin/dashboard')}
+                onClick={() => router.push("/admin/dashboard")}
                 className="mr-4 text-gray-500 hover:text-gray-700"
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">User Management</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  User Management
+                </h1>
                 <p className="text-xs sm:text-sm text-gray-500 mt-1">
                   Total Users: {totalUsers}
                 </p>
@@ -162,8 +166,12 @@ function AdminUsersPage() {
               disabled={refreshing}
               className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline text-sm font-medium">Refresh</span>
+              <RefreshCw
+                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+              />
+              <span className="hidden sm:inline text-sm font-medium">
+                Refresh
+              </span>
             </button>
           </div>
         </div>
@@ -198,7 +206,7 @@ function AdminUsersPage() {
                   onChange={(e) => setSelectedTier(e.target.value)}
                   className="w-full px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FC93B] focus:border-transparent"
                 >
-                  {subscriptionTiers.map(tier => (
+                  {subscriptionTiers.map((tier) => (
                     <option key={tier.value} value={tier.value}>
                       {tier.label}
                     </option>
@@ -215,7 +223,7 @@ function AdminUsersPage() {
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="w-full px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FC93B] focus:border-transparent"
                 >
-                  {statusOptions.map(status => (
+                  {statusOptions.map((status) => (
                     <option key={status.value} value={status.value}>
                       {status.label}
                     </option>
@@ -242,29 +250,40 @@ function AdminUsersPage() {
             </div>
           ) : (
             <>
-            
               <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subscription</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Contact
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Subscription
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Joined
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {users.length > 0 ? (
                       users.map((user: any) => (
-                        <tr 
-                          key={user.id} 
+                        <tr
+                          key={user.id}
                           className="hover:bg-gray-50 cursor-pointer transition-colors"
                           onClick={() => handleUserClick(user.id)}
                         >
                           <td className="px-6 py-4">
                             <div>
-                              <div className="text-sm font-medium text-gray-900">{user.fullName}</div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {user.fullName}
+                              </div>
                               {user.membershipNumber && (
                                 <div className="text-xs text-gray-500 mt-1">
                                   ID: {user.membershipNumber}
@@ -287,7 +306,9 @@ function AdminUsersPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(user.subscriptionTier)}`}>
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(user.subscriptionTier)}`}
+                            >
                               {getSubscriptionTierLabel(user.subscriptionTier)}
                             </span>
                           </td>
@@ -316,7 +337,10 @@ function AdminUsersPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                        <td
+                          colSpan={5}
+                          className="px-6 py-12 text-center text-gray-500"
+                        >
                           No users found
                         </td>
                       </tr>
@@ -328,40 +352,46 @@ function AdminUsersPage() {
               <div className="block md:hidden divide-y divide-gray-200">
                 {users.length > 0 ? (
                   users.map((user: any) => (
-                    <div 
+                    <div
                       key={user.id}
                       onClick={() => handleUserClick(user.id)}
                       className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
                     >
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h3 className="font-medium text-gray-900">{user.fullName}</h3>
+                          <h3 className="font-medium text-gray-900">
+                            {user.fullName}
+                          </h3>
                           {user.membershipNumber && (
-                            <p className="text-xs text-gray-500 mt-0.5">ID: {user.membershipNumber}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              ID: {user.membershipNumber}
+                            </p>
                           )}
                         </div>
                         <Eye className="h-5 w-5 text-gray-400" />
                       </div>
-                      
+
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center text-gray-600">
                           <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
                           <span className="truncate">{user.email}</span>
                         </div>
-                        
+
                         {user.cellphone && (
                           <div className="flex items-center text-gray-600">
                             <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
                             <span>{user.cellphone}</span>
                           </div>
                         )}
-                        
+
                         <div className="flex items-center justify-between pt-2">
                           <div className="flex items-center space-x-2">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(user.subscriptionTier)}`}>
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${getSubscriptionTierColor(user.subscriptionTier)}`}
+                            >
                               {getSubscriptionTierLabel(user.subscriptionTier)}
                             </span>
-                            
+
                             {user.emailVerified ? (
                               <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full flex items-center gap-1">
                                 <UserCheck className="h-3 w-3" />
@@ -374,7 +404,7 @@ function AdminUsersPage() {
                               </span>
                             )}
                           </div>
-                          
+
                           <div className="flex items-center text-xs text-gray-500">
                             <Calendar className="h-3 w-3 mr-1" />
                             {formatDate(user.registrationDate)}
@@ -399,14 +429,16 @@ function AdminUsersPage() {
               </div>
               <div className="flex space-x-2 order-1 sm:order-2">
                 <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                   className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
                   Previous
                 </button>
                 <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
                   disabled={currentPage === totalPages}
                   className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
