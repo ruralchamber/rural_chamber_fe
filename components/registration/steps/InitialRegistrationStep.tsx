@@ -15,6 +15,8 @@ interface InitialRegistrationData {
 
 interface InitialRegistrationStepProps {
   data: any;
+  accountAlreadyExists?: boolean;
+  onClearAccountAlreadyExists?: () => void;
   onSubmit: (data: {
     email: string;
     cellphone: string;
@@ -27,6 +29,8 @@ interface InitialRegistrationStepProps {
 
 export const InitialRegistrationStep = ({
   data,
+  accountAlreadyExists = false,
+  onClearAccountAlreadyExists,
   onSubmit,
   isLoading,
 }: InitialRegistrationStepProps) => {
@@ -46,6 +50,7 @@ export const InitialRegistrationStep = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    onClearAccountAlreadyExists?.();
 
     if (errors[name as keyof InitialRegistrationData]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
@@ -107,6 +112,24 @@ export const InitialRegistrationStep = ({
       <p className="text-gray-500 text-sm mb-6">
         Enter your basic information to get started with your Rural Chamber of Commerce membership
       </p>
+
+      {accountAlreadyExists && (
+        <div
+          role="alert"
+          className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+        >
+          <p>
+            An account with these details already exists. Please log in instead
+            of creating another account.
+          </p>
+          <Link
+            href="/auth/login"
+            className="mt-2 inline-block font-medium text-[#63851F] underline hover:text-[#496416]"
+          >
+            Log in to your account
+          </Link>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

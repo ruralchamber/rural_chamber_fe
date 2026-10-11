@@ -54,9 +54,41 @@ export interface RegistrationData {
   userId?: number;
 }
 
+const getPlanSelectionFromUrl = (): Partial<RegistrationData> => {
+  const params = new URLSearchParams(window.location.search);
+  const membershipType = params.get("membershipType") || "";
+  const requestedAccountType = params.get("accountType");
+
+  if (
+    membershipType !== "free" &&
+    !membershipType.startsWith("individual_") &&
+    !membershipType.startsWith("organizational_")
+  ) {
+    return {};
+  }
+
+  const accountType =
+    membershipType.startsWith("organizational_")
+      ? "organizational"
+      : membershipType.startsWith("individual_")
+        ? "individual"
+        : requestedAccountType === "organizational"
+          ? "organizational"
+          : "individual";
+  const billingFrequency =
+    params.get("billingFrequency") === "monthly" ? "monthly" : "annual";
+
+  return { membershipType, accountType, billingFrequency };
+};
+
+const isExistingAccountError = (status: number | undefined, message: string) =>
+  status === 409 ||
+  /already\s+(exists|registered|completed)|duplicate/i.test(message);
+
 function RegistrationWizardContent() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [accountAlreadyExists, setAccountAlreadyExists] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [searchParamsInitialized, setSearchParamsInitialized] = useState(false);
@@ -85,6 +117,11 @@ function RegistrationWizardContent() {
 
   useEffect(() => {
     const loadExistingRegistration = async () => {
+      const selectedPlan = getPlanSelectionFromUrl();
+      if (selectedPlan.membershipType) {
+        setRegistrationData((previous) => ({ ...previous, ...selectedPlan }));
+      }
+
       try {
         const userData = localStorage.getItem("user_data");
         const registrationInProgress = localStorage.getItem("registration_in_progress");
@@ -98,7 +135,19 @@ function RegistrationWizardContent() {
             if (!progressResponse.error && progressResponse.data) {
               const { registration, currentStep: savedStep, steps } = progressResponse.data;
 
-              let restoredData = { ...registrationData };
+              let restoredData = { ...registrationData, ...selectedPlan };
+
+              const savedRegistrationData = localStorage.getItem("registration_data");
+              if (savedRegistrationData) {
+                try {
+                  restoredData = {
+                    ...restoredData,
+                    ...JSON.parse(savedRegistrationData),
+                  };
+                } catch (error) {
+                  console.error("Failed to parse saved registration data:", error);
+                }
+              }
 
               if (registration) {
                 restoredData = {
@@ -113,6 +162,10 @@ function RegistrationWizardContent() {
                   restoredData = { ...restoredData, ...step.data };
                 }
               });
+
+              if (!restoredData.membershipType && selectedPlan.membershipType) {
+                restoredData = { ...restoredData, ...selectedPlan };
+              }
 
               setRegistrationData(restoredData);
 
@@ -142,7 +195,11 @@ function RegistrationWizardContent() {
           if (savedRegistrationData) {
             try {
               const parsedData = JSON.parse(savedRegistrationData);
-              setRegistrationData(prev => ({ ...prev, ...parsedData }));
+              const restoredData = {
+                ...parsedData,
+                ...(!parsedData.membershipType ? selectedPlan : {}),
+              };
+              setRegistrationData((prev) => ({ ...prev, ...restoredData }));
             } catch (e) {
               console.error("Failed to parse saved registration data:", e);
             }
@@ -208,6 +265,7 @@ function RegistrationWizardContent() {
     password: string;
   }) => {
     setIsLoading(true);
+    setAccountAlreadyExists(false);
     try {
       const response = await REGISTRATION_API.START_REGISTRATION({
         fullName: `${data.firstName} ${data.lastName}`,
@@ -220,11 +278,12 @@ function RegistrationWizardContent() {
       if (response.error) {
         const errorMessage = response.message || "Registration failed. Please try again.";
 
-        if (response.status === 409 || errorMessage.includes("already exists") || errorMessage.includes("already completed")) {
-          toast.error("User already exists. Please login.", {
+        if (isExistingAccountError(response.status, errorMessage)) {
+          setAccountAlreadyExists(true);
+          toast.error("An account with these details already exists. Please log in.", {
             duration: 6000,
             action: {
-              label: "Go to Login",
+              label: "Log in",
               onClick: () => {
                 router.push("/auth/login");
               },
@@ -254,6 +313,8 @@ function RegistrationWizardContent() {
       localStorage.setItem("current_registration_step", startStep.toString());
 
       const stepData = {
+        ...registrationData,
+        ...data,
         email: data.email,
         cellphone: data.cellphone,
         firstName: data.firstName,
@@ -282,11 +343,12 @@ function RegistrationWizardContent() {
 
       const errorMessage = error.response?.data?.message || error.message || "Unable to complete registration.";
 
-      if (error.response?.status === 409 || errorMessage.includes("already exists") || errorMessage.includes("already completed")) {
-        toast.error("User already exists. Please login.", {
+      if (isExistingAccountError(error.response?.status, errorMessage)) {
+        setAccountAlreadyExists(true);
+        toast.error("An account with these details already exists. Please log in.", {
           duration: 6000,
           action: {
-            label: "Go to Login",
+            label: "Log in",
             onClick: () => {
               router.push("/auth/login");
             },
@@ -579,6 +641,8 @@ function RegistrationWizardContent() {
         return (
           <InitialRegistrationStep
             data={registrationData}
+            accountAlreadyExists={accountAlreadyExists}
+            onClearAccountAlreadyExists={() => setAccountAlreadyExists(false)}
             onSubmit={handleInitialRegistration}
             isLoading={isLoading}
           />
@@ -666,6 +730,13 @@ function RegistrationWizardContent() {
       return;
     }
 
+    const selectedPlan = {
+      membershipType: registrationData.membershipType,
+      membershipAmount: registrationData.membershipAmount,
+      billingFrequency: registrationData.billingFrequency,
+      accountType: registrationData.accountType,
+    };
+
     localStorage.removeItem("registration_in_progress");
     localStorage.removeItem("registration_data");
     localStorage.removeItem("current_registration_step");
@@ -690,10 +761,7 @@ function RegistrationWizardContent() {
       firstName: "",
       lastName: "",
       password: "",
-      accountType: "individual",
-      membershipType: "",
-      membershipAmount: 0,
-      billingFrequency: "annual",
+      ...selectedPlan,
       country: "",
       addressLine1: "",
       postalCode: "",
@@ -704,6 +772,7 @@ function RegistrationWizardContent() {
     });
     setCurrentUser(null);
     setEmailVerified(false);
+    setAccountAlreadyExists(false);
 
     toast.success("Starting fresh registration...");
   };

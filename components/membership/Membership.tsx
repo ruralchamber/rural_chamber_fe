@@ -96,38 +96,37 @@ export default function MembershipPricing() {
       const response = await SUBSCRIPTION_API.GET_SUBSCRIPTION_PLANS();
 
       let fetchedPlans: PricingTier[] = [];
+      let individualPlans: PricingTier[] = [];
+      let organizationalPlans: PricingTier[] = [];
 
       if (response.data) {
         const apiData = response.data;
 
-        if (userAccountType === "individual" && apiData.individual) {
-          fetchedPlans = apiData.individual.map((plan: any) => ({
-            id: plan.id,
-            name: plan.name,
-            description: plan.description,
-            monthlyAmount: plan.monthlyAmount,
-            annualAmount: plan.annualAmount,
-            features: plan.features || [],
-            accountType: plan.accountType,
-            membershipType: plan.membershipType,
-            isActive: plan.isActive,
-          }));
-        } else if (
-          userAccountType === "organizational" &&
-          apiData.organizational
-        ) {
-          fetchedPlans = apiData.organizational.map((plan: any) => ({
-            id: plan.id,
-            name: plan.name,
-            description: plan.description,
-            monthlyAmount: plan.monthlyAmount,
-            annualAmount: plan.annualAmount,
-            features: plan.features || [],
-            accountType: plan.accountType,
-            membershipType: plan.membershipType,
-            isActive: plan.isActive,
-          }));
-        }
+        individualPlans = apiData.individual.map((plan: any) => ({
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+          monthlyAmount: plan.monthlyAmount,
+          annualAmount: plan.annualAmount,
+          features: plan.features || [],
+          accountType: plan.accountType,
+          membershipType: plan.membershipType,
+          isActive: plan.isActive,
+        }));
+
+        organizationalPlans = apiData.organizational.map((plan: any) => ({
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+          monthlyAmount: plan.monthlyAmount,
+          annualAmount: plan.annualAmount,
+          features: plan.features || [],
+          accountType: plan.accountType,
+          membershipType: plan.membershipType,
+          isActive: plan.isActive,
+        }));
+
+        fetchedPlans = [...individualPlans, ...organizationalPlans];
       }
 
       const freePlan: PricingTier = {
@@ -281,9 +280,20 @@ export default function MembershipPricing() {
       localStorage.getItem("token");
 
     if (!token) {
-      toast.error("Please login to subscribe");
-      sessionStorage.setItem("redirectAfterLogin", "/membership");
-      router.push("/auth/login");
+      const accountType =
+        plan.membershipType.startsWith("organizational_")
+          ? "organizational"
+          : plan.membershipType.startsWith("individual_")
+            ? "individual"
+            : plan.accountType === "organizational"
+              ? "organizational"
+              : "individual";
+      const params = new URLSearchParams({
+        membershipType: plan.membershipType,
+        accountType,
+        billingFrequency: billingCycle,
+      });
+      router.push(`/auth/signup?${params.toString()}`);
       return;
     }
 
@@ -348,7 +358,17 @@ export default function MembershipPricing() {
         toast.error(
           "Please complete your registration first before subscribing to a paid plan.",
         );
-        router.push("/auth/signup");
+        const params = new URLSearchParams({
+          membershipType: plan.membershipType,
+          accountType:
+            plan.membershipType.startsWith("organizational_")
+              ? "organizational"
+              : plan.accountType === "organizational"
+                ? "organizational"
+                : "individual",
+          billingFrequency: billingCycle,
+        });
+        router.push(`/auth/signup?${params.toString()}`);
         setIsLoading(false);
         return;
       }
