@@ -280,14 +280,13 @@ export default function MembershipPricing() {
       localStorage.getItem("token");
 
     if (!token) {
-      const accountType =
-        plan.membershipType.startsWith("organizational_")
-          ? "organizational"
-          : plan.membershipType.startsWith("individual_")
-            ? "individual"
-            : plan.accountType === "organizational"
-              ? "organizational"
-              : "individual";
+      const accountType = plan.membershipType.startsWith("organizational_")
+        ? "organizational"
+        : plan.membershipType.startsWith("individual_")
+          ? "individual"
+          : plan.accountType === "organizational"
+            ? "organizational"
+            : "individual";
       const params = new URLSearchParams({
         membershipType: plan.membershipType,
         accountType,
@@ -360,12 +359,11 @@ export default function MembershipPricing() {
         );
         const params = new URLSearchParams({
           membershipType: plan.membershipType,
-          accountType:
-            plan.membershipType.startsWith("organizational_")
+          accountType: plan.membershipType.startsWith("organizational_")
+            ? "organizational"
+            : plan.accountType === "organizational"
               ? "organizational"
-              : plan.accountType === "organizational"
-                ? "organizational"
-                : "individual",
+              : "individual",
           billingFrequency: billingCycle,
         });
         router.push(`/auth/signup?${params.toString()}`);
@@ -630,10 +628,6 @@ export default function MembershipPricing() {
           </h2>
           <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
             Select the membership plan that best fits your business needs
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
-            {userAccountType === "individual" ? "Individual" : "Organizational"}{" "}
-            Plans
           </p>
         </motion.div>
 
