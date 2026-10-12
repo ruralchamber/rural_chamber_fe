@@ -52,21 +52,20 @@ export default function Home() {
     },
   ];
 
-
   const handleJoinUs = () => {
-    router.push("/auth/signup"); 
+    router.push("/auth/signup");
   };
 
   const handleLearnMore = () => {
-    router.push("/about"); 
+    router.push("/about");
   };
 
   const handleReadMore = () => {
-    router.push("/about"); 
+    router.push("/about");
   };
 
   const handleBecomeMember = () => {
-    router.push("/membership"); 
+    router.push("/membership");
   };
 
   return (
@@ -81,12 +80,12 @@ export default function Home() {
             {
               text: "Join Us",
               variant: "primary",
-              onClick: handleJoinUs, 
+              onClick: handleJoinUs,
             },
             {
               text: "Learn more",
-              variant: "secondary", 
-              onClick: handleLearnMore, 
+              variant: "secondary",
+              onClick: handleLearnMore,
             },
           ]}
         />
@@ -96,7 +95,7 @@ export default function Home() {
           title="Empowering Rural Communities for a Prosperous Future"
           description="The Rural Chamber of Commerce and Industry is dedicated to empowering South Africa's rural communities by promoting economic growth, entrepreneurship, and sustainable development. Through advocacy, training, business support services, and networking opportunities, we strive to create a vibrant business ecosystem that drives job creation, reduces poverty, and unlocks the potential of rural industries. Together, we are shaping a prosperous future for rural South Africa."
           buttonText="Read More"
-          onButtonClick={handleReadMore} 
+          onButtonClick={handleReadMore}
         />
       </div>
 
@@ -171,14 +170,14 @@ export default function Home() {
           backgroundImage="/home/trees.png"
           title="Become a member today and help build thriving rural communities!"
           buttonText="Become a Member"
-          onButtonClick={handleBecomeMember} 
+          onButtonClick={handleBecomeMember}
         />
       </div>
 
-      <div className="bg-white">
+      {/* <div className="bg-white">
         <UpcomingEvent />
       </div>
-      <MembershipPricing />
+      <MembershipPricing /> */}
     </div>
   );
 }
