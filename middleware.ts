@@ -17,7 +17,10 @@ export function middleware(request: NextRequest) {
     "/contact-us",
     "/auth/login",
     "/auth/signup",
-    "/auth/forgot-password"
+    "/auth/forgot-password",
+    "/auth/reset-code",
+    "/auth/new-password",
+    "/auth/verify-email"
   ];
 
   // Protected routes that require authentication

@@ -51,7 +51,8 @@ export async function POST(endPoint: string, payload: object) {
     console.log(`[API ERROR: Method: POST; Endpoint: ${endPoint}]`, error);
     Diagnostic("ERROR ON POST, returning", error);
     
-    if (error.response?.status === 401) {
+    const isPublicAuthCall = /\/auth\/(login|signup|send-otp|verify-otp|update-password|check-registration)/.test(endPoint);
+    if (error.response?.status === 401 && !isPublicAuthCall) {
       authUtils.clearAuthData();
       if (typeof window !== 'undefined') {
         window.location.href = '/auth/login';

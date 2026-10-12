@@ -1,7 +1,8 @@
 // app/auth/new-password/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { isSuccess } from '@/app/api/lib/response';
 import AuthLayout from '@/components/common/AuthLayout';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -20,6 +21,14 @@ const NewPasswordPage: React.FC = () => {
 
   const router = useRouter();
 
+  useEffect(() => {
+    if (!localStorage.getItem('resetEmail')) {
+      router.replace('/auth/forgot-password');
+    } else if (!localStorage.getItem('verifiedOtp')) {
+      router.replace('/auth/reset-code');
+    }
+  }, [router]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -37,7 +46,7 @@ const NewPasswordPage: React.FC = () => {
       return false;
     }
 
-    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/;
     if (!strongPasswordRegex.test(formData.password)) {
       setError('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character');
       return false;
@@ -66,7 +75,7 @@ const NewPasswordPage: React.FC = () => {
         newPassword: formData.password
       });
 
-      if (response.error === false) {
+      if (isSuccess(response)) {
         toast.success('Password updated successfully');
         
         // Clear reset data from localStorage
@@ -74,9 +83,7 @@ const NewPasswordPage: React.FC = () => {
         localStorage.removeItem('verifiedOtp');
         
         // Redirect to login page
-        setTimeout(() => {
-          router.push('/auth/login');
-        }, 1500);
+        router.push('/auth/login');
       } else {
         setError(response.message || 'Failed to update password');
       }

@@ -1,7 +1,8 @@
 // app/auth/reset-code/page.tsx
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { isSuccess } from "@/app/api/lib/response";
 import AuthLayout from "@/components/common/AuthLayout";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,6 +15,12 @@ const ResetCodePage: React.FC = () => {
   const [resending, setResending] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!localStorage.getItem("resetEmail")) {
+      router.replace("/auth/forgot-password");
+    }
+  }, [router]);
 
   const setInputRef = (index: number) => (el: HTMLInputElement | null) => {
     inputRefs.current[index] = el;
@@ -29,6 +36,14 @@ const ResetCodePage: React.FC = () => {
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (!digits) return;
+    e.preventDefault();
+    setCode(Array.from({ length: 6 }, (_, i) => digits[i] || ""));
+    inputRefs.current[Math.min(digits.length, 5)]?.focus();
   };
 
   const handleKeyDown = (
@@ -57,7 +72,7 @@ const ResetCodePage: React.FC = () => {
 
       const response = await AUTH_API.VERIFY_OTP({ email, otp: enteredCode });
 
-      if (response.error === false) {
+      if (isSuccess(response)) {
         toast.success("Code verified successfully");
         // Store OTP in localStorage for password reset
         localStorage.setItem("verifiedOtp", enteredCode);
@@ -81,7 +96,7 @@ const ResetCodePage: React.FC = () => {
       const email = localStorage.getItem("resetEmail") || "";
       const response = await AUTH_API.SEND_OTP({ email });
 
-      if (response.error === false) {
+      if (isSuccess(response)) {
         toast.success("New code sent to your email");
       } else {
         toast.error(response.message || "Failed to resend code");
@@ -119,6 +134,7 @@ const ResetCodePage: React.FC = () => {
                 value={digit}
                 onChange={(e) => handleChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
+                onPaste={handlePaste}
                 disabled={loading}
                 className="w-12 h-12 text-center border border-gray-300 rounded-md text-lg font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#9FC93B] focus:border-transparent disabled:opacity-50"
               />

@@ -6,6 +6,7 @@ import AuthLayout from '@/components/common/AuthLayout';
 import Link from 'next/link';
 import { AUTH_API } from '@/app/api/endpoints/rest-api/auth/auth';
 import { toast } from 'sonner';
+import { isSuccess } from '@/app/api/lib/response';
 import { useRouter } from 'next/navigation';
 
 const ForgotPasswordPage: React.FC = () => {
@@ -18,20 +19,14 @@ const ForgotPasswordPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await AUTH_API.SEND_OTP({ email });
+      const normalizedEmail = email.trim().toLowerCase();
+      const response = await AUTH_API.SEND_OTP({ email: normalizedEmail });
       
-      // Check for error: false instead of response.success
-      if (response.error === false) {
-        // Store email in localStorage for the reset-code page
-        localStorage.setItem('resetEmail', email);
-        
+      if (isSuccess(response)) {
+        localStorage.setItem('resetEmail', normalizedEmail);
+        localStorage.removeItem('verifiedOtp');
         toast.success('Reset instructions sent to your email');
-        
-        // Redirect to reset-code page after a short delay
-        setTimeout(() => {
-          router.push('/auth/reset-code');
-        }, 1000);
-        
+        router.push('/auth/reset-code');
       } else {
         toast.error(response.message || 'Failed to send reset instructions');
       }
