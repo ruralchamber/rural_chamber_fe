@@ -1,6 +1,6 @@
 // src/app/api/endpoints/rest-api/dashboard/users.ts
 import { baseUrl } from "../../url";
-import { GET, POST, PUT, DELETE } from "@/app/api/lib/client";
+import { GET, POST, PUT, PATCH, DELETE } from "@/app/api/lib/client";
 import { CustomResponse } from "@/interfaces/response";
 
 const AdminUsersBaseURL = `${baseUrl}/dashboard/users`;
@@ -170,6 +170,9 @@ export const ADMIN_USERS_API = {
 
   UPDATE_USER: async (userId: number, payload: Record<string, unknown>) =>
     PUT(`${AdminUsersBaseURL}/${userId}`, payload),
+
+  UPDATE_ROLE: async (userId: number, role: "customer" | "admin") =>
+    PATCH(`${AdminUsersBaseURL}/${userId}/role`, { role }),
 
   DELETE_USER: async (userId: number, reason: string) =>
     DELETE(`${AdminUsersBaseURL}/${userId}`, { reason }),

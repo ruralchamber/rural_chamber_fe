@@ -40,6 +40,7 @@ export function UserAdminPanel({
   const [plans, setPlans] = useState<Array<{ type: string; name: string; monthlyAmount: number; annualAmount: number; features: string[] }>>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmMembership, setConfirmMembership] = useState(false);
+  const [confirmPromote, setConfirmPromote] = useState(false);
   const [confirmError, setConfirmError] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -59,6 +60,25 @@ export function UserAdminPanel({
       isActive: userData.isActive !== false,
     });
   }, [userData]);
+
+  const promoteToAdmin = async () => {
+    setBusy(true);
+    try {
+      const response = await ADMIN_USERS_API.UPDATE_ROLE(userId, "admin");
+      if (response?.error) {
+        toast.error(response.message || "Could not promote this user");
+        return;
+      }
+      toast.success(response?.message || "User promoted to admin");
+      setConfirmPromote(false);
+      setProfile((current) => ({ ...current, role: "admin" }));
+      onChanged();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Could not promote this user");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const saveProfile = async () => {
     setBusy(true);
@@ -199,7 +219,12 @@ export function UserAdminPanel({
             </label>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button disabled={busy} onClick={saveProfile} className="px-4 py-2 rounded-lg bg-[#01311B] text-white">Save profile</button>
+            <button type="button" disabled={busy} onClick={saveProfile} className="px-4 py-2 rounded-lg bg-[#01311B] text-white">Save profile</button>
+            {userData.role !== "admin" && !userData.deletedAt && (
+              <button type="button" onClick={() => setConfirmPromote(true)} className="px-4 py-2 rounded-lg border border-[#01311B] text-[#01311B]">
+                Promote to admin
+              </button>
+            )}
             {userData.deletedAt ? (
               <button disabled={busy} onClick={restoreUser} className="px-4 py-2 rounded-lg border">Restore user</button>
             ) : (
@@ -286,6 +311,20 @@ export function UserAdminPanel({
             </div>
           ))}
         </div>
+      )}
+
+      {confirmPromote && (
+        <Modal title="Promote to admin?" onClose={() => setConfirmPromote(false)}>
+          <p className="text-sm text-gray-600">
+            {userData.fullName} will be able to open the admin portal the next time they sign in. Their membership stays unchanged.
+          </p>
+          <div className="flex justify-end gap-3 mt-4">
+            <button type="button" onClick={() => setConfirmPromote(false)} className="px-4 py-2 border rounded-lg">Cancel</button>
+            <button type="button" disabled={busy} onClick={promoteToAdmin} className="px-4 py-2 rounded-lg bg-[#01311B] text-white disabled:opacity-50">
+              {busy ? "Promoting..." : "Promote to admin"}
+            </button>
+          </div>
+        </Modal>
       )}
 
       {confirmDelete && (

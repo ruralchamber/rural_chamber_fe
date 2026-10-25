@@ -23,13 +23,15 @@ import { CreateUserModal } from "@/components/Admin/Users/CreateUserModal";
 
 function AdminUsersPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth();
   const searchParams = useSearchParams();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [promoteTarget, setPromoteTarget] = useState<{ id: number; fullName: string } | null>(null);
+  const [promoting, setPromoting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTier, setSelectedTier] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
@@ -89,6 +91,25 @@ function AdminUsersPage() {
   const handleUserClick = (userId: number) => {
     setNavigating(true);
     router.push(`/admin/users/${userId}`);
+  };
+
+  const promoteUser = async () => {
+    if (!promoteTarget) return;
+    setPromoting(true);
+    try {
+      const response = await ADMIN_USERS_API.UPDATE_ROLE(promoteTarget.id, "admin");
+      if (response?.error) {
+        toast.error(response.message || "Could not promote this user");
+        return;
+      }
+      toast.success(response?.message || "User promoted to admin");
+      setPromoteTarget(null);
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Could not promote this user");
+    } finally {
+      setPromoting(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -337,7 +358,20 @@ function AdminUsersPage() {
                               <div className="text-xs text-gray-500 mt-1">
                                 User {user.id}
                                 {user.membershipNumber ? ` · ${user.membershipNumber}` : ""}
+                                {user.role === "admin" ? " · Admin" : ""}
                               </div>
+                              {user.role !== "admin" && user.id !== Number(currentUser?.id) && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setPromoteTarget({ id: user.id, fullName: user.fullName });
+                                  }}
+                                  className="mt-2 text-xs font-medium text-[#01311B] underline"
+                                >
+                                  Promote to admin
+                                </button>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -419,6 +453,21 @@ function AdminUsersPage() {
                             <p className="text-xs text-gray-500 mt-0.5">
                               ID: {user.membershipNumber}
                             </p>
+                          )}
+                          {user.role === "admin" && (
+                            <p className="text-xs text-[#01311B] mt-0.5">Admin</p>
+                          )}
+                          {user.role !== "admin" && user.id !== Number(currentUser?.id) && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setPromoteTarget({ id: user.id, fullName: user.fullName });
+                              }}
+                              className="mt-1 text-xs font-medium text-[#01311B] underline"
+                            >
+                              Promote to admin
+                            </button>
                           )}
                         </div>
                         <Eye className="h-5 w-5 text-gray-400" />
@@ -503,6 +552,22 @@ function AdminUsersPage() {
         </div>
       </div>
       <CreateUserModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={fetchUsers} />
+      {promoteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+            <h3 className="text-lg font-bold mb-2">Promote to admin?</h3>
+            <p className="text-sm text-gray-600">
+              {promoteTarget.fullName} will be able to open the admin portal the next time they sign in.
+            </p>
+            <div className="flex justify-end gap-3 mt-4">
+              <button type="button" onClick={() => setPromoteTarget(null)} className="px-4 py-2 border rounded-lg">Cancel</button>
+              <button type="button" disabled={promoting} onClick={promoteUser} className="px-4 py-2 rounded-lg bg-[#01311B] text-white disabled:opacity-50">
+                {promoting ? "Promoting..." : "Promote to admin"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
