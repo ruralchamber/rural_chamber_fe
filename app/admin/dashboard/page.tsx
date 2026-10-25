@@ -143,6 +143,14 @@ function AdminDashboardContent() {
       onClick: () => router.push("/admin/users"),
     },
     {
+      title: "Outstanding Payments",
+      description: "Send Paystack payment reminders",
+      icon: CreditCard,
+      color: "bg-red-500",
+      hoverColor: "hover:bg-red-600",
+      onClick: () => router.push("/admin/users?membershipStatus=overdue"),
+    },
+    {
       title: "Subscribers",
       description: "Email subscribers list",
       icon: Mail,
@@ -400,6 +408,46 @@ function AdminDashboardContent() {
           </motion.div>
         </div>
 
+        {stats?.membership && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {[
+              ["Registered users", stats.membership.totalRegistered],
+              ["Active users", stats.membership.activeUsers],
+              ["Inactive users", stats.membership.inactiveUsers],
+              ["Active memberships", stats.membership.activeMemberships],
+              ["Awaiting payment", stats.membership.awaitingPayment],
+              ["Overdue memberships", stats.membership.overdueMemberships],
+              ["Outstanding revenue", `R ${Number(stats.membership.outstandingRevenue || 0).toLocaleString("en-ZA")}`],
+              ["Plan changes this month", `${stats.membership.upgradesThisMonth || 0} up / ${stats.membership.downgradesThisMonth || 0} down`],
+            ].map(([label, value]) => (
+              <div key={String(label)} className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {stats?.membership?.recentPayments?.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recently received payments</h3>
+            <div className="divide-y">
+              {stats.membership.recentPayments.map((payment: any) => (
+                <button
+                  key={payment.id}
+                  className="w-full text-left py-3 flex justify-between gap-4 hover:bg-gray-50"
+                  onClick={() => router.push(`/admin/users/${payment.userId}`)}
+                >
+                  <span>
+                    <span className="block text-sm font-medium text-gray-900">{payment.userName || "Member"}</span>
+                    <span className="block text-xs text-gray-500">{payment.membershipType?.replaceAll("_", " ")}</span>
+                  </span>
+                  <span className="text-sm font-semibold text-[#01311B]">R {Number(payment.amount).toFixed(2)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {selectedTab === "overview" && (
           <>
             <div className="mb-8">
@@ -436,6 +484,20 @@ function AdminDashboardContent() {
                       </p>
                     </div>
                     <Users className="h-8 w-8" />
+                  </div>
+                </motion.div>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="bg-linear-to-r from-[#01311B] to-[#245c38] text-white rounded-xl shadow-lg p-6 cursor-pointer"
+                  onClick={() => router.push("/admin/users?membershipStatus=overdue")}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xl font-bold">Payment Reminders</h4>
+                      <p className="text-green-100 mt-1">Review overdue memberships</p>
+                    </div>
+                    <CreditCard className="h-8 w-8" />
                   </div>
                 </motion.div>
               </div>
