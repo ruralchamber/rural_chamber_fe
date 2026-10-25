@@ -103,9 +103,17 @@ export function UserAdminPanel({
     try {
       const response = await ADMIN_USERS_API.CHANGE_MEMBERSHIP(userId, membership);
       const data = response?.data;
-      toast.success(data?.requiresPayment
-        ? "Upgrade recorded. Generate a payment link before the new plan starts."
-        : "Membership change saved");
+      if (data?.requiresPayment && data?.timing === "next_cycle") {
+        toast.success(data.emailSent
+          ? "Upgrade scheduled. The member was emailed. The Paystack link goes out on the next billing date, and the new plan starts after payment."
+          : "Upgrade scheduled. The email could not be sent and can be retried from Outstanding payments.");
+      } else if (data?.requiresPayment) {
+        toast.success(data.emailSent
+          ? "Paystack payment link emailed. The new plan starts only after Paystack confirms payment."
+          : "Upgrade saved. The payment email could not be sent and can be retried from Outstanding payments.");
+      } else {
+        toast.success("Membership change saved");
+      }
       setConfirmMembership(false);
       onChanged();
     } catch (error: any) {
@@ -265,10 +273,17 @@ export function UserAdminPanel({
             </label>
           </div>
           <button type="button" onClick={() => { setConfirmError(""); setConfirmMembership(true); }} className="px-4 py-2 rounded-lg bg-[#01311B] text-white">Review membership change</button>
+          {subscription.pendingSubscriptionType && (
+            <p className="text-sm text-[#01311B]">
+              {userData.membershipDisplayStatus || "Pending Payment"}: {String(subscription.pendingSubscriptionType).replaceAll("_", " ")}
+              {subscription.pendingEffectiveDate ? ` from ${new Date(subscription.pendingEffectiveDate).toLocaleDateString("en-ZA")}` : ""}.
+              The current plan stays active until Paystack confirms the upgrade payment.
+            </p>
+          )}
           {proposedAmount != null && (
             <p className="text-sm text-gray-600">
               Current fee R {Number(subscription.amount || 0).toFixed(2)} · Proposed fee R {Number(proposedAmount).toFixed(2)} ({membership.newBillingFrequency}).
-              Immediate upgrades charge the prorated difference and start after Paystack confirms payment.
+              An immediate upgrade emails a Paystack link now for the prorated difference. A next-cycle upgrade keeps the current plan until the renewal date and emails the Paystack link on that date.
             </p>
           )}
           <HistoryTable rows={history} />
@@ -341,8 +356,10 @@ export function UserAdminPanel({
       {confirmMembership && (
         <Modal title="Confirm membership change" onClose={() => setConfirmMembership(false)}>
           <p className="text-sm text-gray-600">
-            Change this member to {membership.newSubscriptionType.replaceAll("_", " ")} ({membership.newBillingFrequency}), effective {membership.timing === "immediate" ? "now" : "next cycle"}.
-            An upgrade that increases the fee creates a prorated Paystack charge and does not start until that payment is confirmed.
+            Change this member to {membership.newSubscriptionType.replaceAll("_", " ")} ({membership.newBillingFrequency}), effective {membership.timing === "immediate" ? "now" : "the next billing cycle"}.
+            {membership.timing === "immediate"
+              ? " An upgrade emails a Paystack link immediately. The new plan starts only after the member authorizes that payment."
+              : " The current membership continues until the next billing date. The member is emailed now, and the Paystack link is sent on that date so nothing is collected early."}
           </p>
           <label className="block text-sm mt-4">
             Reason
@@ -415,20 +432,34 @@ function PaymentTable({ title, rows, onCopy, onEmail }: { title: string; rows: a
       <h3 className="font-semibold mb-2">{title}</h3>
       {rows.length === 0 && <p className="text-sm text-gray-500">No outstanding payments.</p>}
       <div className="space-y-3">
-        {rows.map((row) => (
+        {rows.map((row) => {
+          const scheduled = row.kind === "upgrade" && row.dueDate && new Date(row.dueDate).getTime() > Date.now() && !row.paymentUrl;
+          const state = row.status === "failed"
+            ? "Payment Failed"
+            : scheduled
+              ? "Scheduled Upgrade"
+              : row.kind === "upgrade" && row.status !== "paid"
+                ? "Pending Payment"
+                : row.status;
+          return (
           <div key={row.id} className="border rounded-lg p-3 text-sm flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <p className="font-medium">R {Number(row.amount).toFixed(2)} · {row.status}</p>
+              <p className="font-medium">R {Number(row.amount).toFixed(2)} · {state}</p>
               <p className="text-gray-500">Due {row.dueDate ? new Date(row.dueDate).toLocaleDateString("en-ZA") : "n/a"} · {row.reference || "No reference yet"} · Emails: {row.emailAttempts || 0} {row.lastEmailStatus || ""}</p>
             </div>
             {row.status !== "paid" && row.status !== "cancelled" && (
               <div className="flex gap-2">
-                <button onClick={() => onCopy(row.id)} className="px-3 py-2 border rounded-lg">Copy link</button>
-                <button onClick={() => onEmail(row.id)} className="px-3 py-2 rounded-lg bg-[#01311B] text-white">Email link</button>
+                {row.paymentUrl && (
+                  <button onClick={() => onCopy(row.id)} className="px-3 py-2 border rounded-lg">Copy link</button>
+                )}
+                <button onClick={() => onEmail(row.id)} className="px-3 py-2 rounded-lg bg-[#01311B] text-white">
+                  {scheduled ? "Resend notice" : "Email link"}
+                </button>
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
