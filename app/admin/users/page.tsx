@@ -2,8 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   ChevronLeft,
@@ -19,17 +19,25 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { AdminProtectedRoute } from "@/components/auth/AdminProtectedRoutes";
 import { ADMIN_USERS_API } from "@/app/api/endpoints/rest-api/dashboard/users";
+import { CreateUserModal } from "@/components/Admin/Users/CreateUserModal";
 
 function AdminUsersPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth();
+  const searchParams = useSearchParams();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [navigating, setNavigating] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [promoteTarget, setPromoteTarget] = useState<{ id: number; fullName: string } | null>(null);
+  const [promoting, setPromoting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTier, setSelectedTier] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedRole, setSelectedRole] = useState("");
+  const [accountStatus, setAccountStatus] = useState("");
+  const [membershipStatus, setMembershipStatus] = useState(searchParams.get("membershipStatus") || "");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -37,7 +45,7 @@ function AdminUsersPage() {
   useEffect(() => {
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, selectedTier, selectedStatus]);
+  }, [currentPage, selectedTier, selectedStatus, selectedRole, accountStatus, membershipStatus]);
 
   const fetchUsers = async () => {
     try {
@@ -48,6 +56,9 @@ function AdminUsersPage() {
         subscriptionTier: selectedTier,
         emailVerified: selectedStatus,
         search: searchTerm,
+        role: selectedRole,
+        accountStatus,
+        membershipStatus,
       });
 
       if (!response.error && response.data) {
@@ -80,6 +91,25 @@ function AdminUsersPage() {
   const handleUserClick = (userId: number) => {
     setNavigating(true);
     router.push(`/admin/users/${userId}`);
+  };
+
+  const promoteUser = async () => {
+    if (!promoteTarget) return;
+    setPromoting(true);
+    try {
+      const response = await ADMIN_USERS_API.UPDATE_ROLE(promoteTarget.id, "admin");
+      if (response?.error) {
+        toast.error(response.message || "Could not promote this user");
+        return;
+      }
+      toast.success(response?.message || "User promoted to admin");
+      setPromoteTarget(null);
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Could not promote this user");
+    } finally {
+      setPromoting(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -161,6 +191,13 @@ function AdminUsersPage() {
                 </p>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCreate(true)}
+                className="px-4 py-2 bg-[#01311B] text-white rounded-lg text-sm"
+              >
+                Add user
+              </button>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -173,6 +210,7 @@ function AdminUsersPage() {
                 Refresh
               </span>
             </button>
+            </div>
           </div>
         </div>
       </div>
@@ -191,7 +229,7 @@ function AdminUsersPage() {
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search by name or email..."
+                    placeholder="Search by name, surname, email, or user ID"
                     className="pl-10 w-full px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9FC93B] focus:border-transparent"
                   />
                 </div>
@@ -231,6 +269,36 @@ function AdminUsersPage() {
                 </select>
               </div>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Role
+                <select value={selectedRole} onChange={(e) => { setSelectedRole(e.target.value); setCurrentPage(1); }} className="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg">
+                  <option value="">All roles</option>
+                  <option value="customer">Customer</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                Account
+                <select value={accountStatus} onChange={(e) => { setAccountStatus(e.target.value); setCurrentPage(1); }} className="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg">
+                  <option value="">Open accounts</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="deleted">Deleted</option>
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                Membership
+                <select value={membershipStatus} onChange={(e) => { setMembershipStatus(e.target.value); setCurrentPage(1); }} className="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg">
+                  <option value="">All memberships</option>
+                  <option value="active">Active</option>
+                  <option value="pending">Pending</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="suspended">Suspended</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="expired">Expired</option>
+                </select>
+              </label>
+            </div>
 
             <div className="flex justify-end">
               <button
@@ -269,6 +337,9 @@ function AdminUsersPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Joined
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Payment & login
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -284,10 +355,22 @@ function AdminUsersPage() {
                               <div className="text-sm font-medium text-gray-900">
                                 {user.fullName}
                               </div>
-                              {user.membershipNumber && (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  ID: {user.membershipNumber}
-                                </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                User {user.id}
+                                {user.membershipNumber ? ` · ${user.membershipNumber}` : ""}
+                                {user.role === "admin" ? " · Admin" : ""}
+                              </div>
+                              {user.role !== "admin" && user.id !== Number(currentUser?.id) && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setPromoteTarget({ id: user.id, fullName: user.fullName });
+                                  }}
+                                  className="mt-2 text-xs font-medium text-[#01311B] underline"
+                                >
+                                  Promote to admin
+                                </button>
                               )}
                             </div>
                           </td>
@@ -333,12 +416,16 @@ function AdminUsersPage() {
                               <span>{formatDate(user.registrationDate)}</span>
                             </div>
                           </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            <div>{user.paymentStatus || user.membershipDisplayStatus || "—"}</div>
+                            <div className="text-xs">{formatDate(user.lastLogin)}</div>
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
                         <td
-                          colSpan={5}
+                          colSpan={6}
                           className="px-6 py-12 text-center text-gray-500"
                         >
                           No users found
@@ -366,6 +453,21 @@ function AdminUsersPage() {
                             <p className="text-xs text-gray-500 mt-0.5">
                               ID: {user.membershipNumber}
                             </p>
+                          )}
+                          {user.role === "admin" && (
+                            <p className="text-xs text-[#01311B] mt-0.5">Admin</p>
+                          )}
+                          {user.role !== "admin" && user.id !== Number(currentUser?.id) && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setPromoteTarget({ id: user.id, fullName: user.fullName });
+                              }}
+                              className="mt-1 text-xs font-medium text-[#01311B] underline"
+                            >
+                              Promote to admin
+                            </button>
                           )}
                         </div>
                         <Eye className="h-5 w-5 text-gray-400" />
@@ -449,6 +551,23 @@ function AdminUsersPage() {
           )}
         </div>
       </div>
+      <CreateUserModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={fetchUsers} />
+      {promoteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+            <h3 className="text-lg font-bold mb-2">Promote to admin?</h3>
+            <p className="text-sm text-gray-600">
+              {promoteTarget.fullName} will be able to open the admin portal the next time they sign in.
+            </p>
+            <div className="flex justify-end gap-3 mt-4">
+              <button type="button" onClick={() => setPromoteTarget(null)} className="px-4 py-2 border rounded-lg">Cancel</button>
+              <button type="button" disabled={promoting} onClick={promoteUser} className="px-4 py-2 rounded-lg bg-[#01311B] text-white disabled:opacity-50">
+                {promoting ? "Promoting..." : "Promote to admin"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -456,7 +575,9 @@ function AdminUsersPage() {
 export default function AdminUsers() {
   return (
     <AdminProtectedRoute>
-      <AdminUsersPage />
+      <Suspense fallback={<div className="p-8 text-center">Loading users...</div>}>
+        <AdminUsersPage />
+      </Suspense>
     </AdminProtectedRoute>
   );
 }

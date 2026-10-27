@@ -89,6 +89,26 @@ export interface DashboardStats {
     activeEvents: number;
     activeSubscriptions: number;
   };
+  membership?: {
+    totalRegistered: number;
+    activeUsers: number;
+    inactiveUsers: number;
+    activeMemberships: number;
+    awaitingPayment: number;
+    overdueMemberships: number;
+    outstandingRevenue: number;
+    upgradesThisMonth: number;
+    downgradesThisMonth: number;
+    recentPayments: Array<{
+      id: number;
+      userId: number;
+      userName?: string;
+      amount: number;
+      paidAt?: string;
+      membershipType: string;
+      reference?: string;
+    }>;
+  };
 }
 
 export const DASHBOARD_API = {

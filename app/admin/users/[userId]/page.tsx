@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { AdminProtectedRoute } from "@/components/auth/AdminProtectedRoutes";
 import { ADMIN_USERS_API } from "@/app/api/endpoints/rest-api/dashboard/users";
+import { UserAdminPanel } from "@/components/Admin/Users/UserAdminPanel";
 
 function AdminUserDetailsPage() {
   const router = useRouter();
@@ -165,6 +166,7 @@ function AdminUserDetailsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <UserAdminPanel userId={parseInt(userId, 10)} userData={userData} onChanged={fetchUserDetails} />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center justify-between">

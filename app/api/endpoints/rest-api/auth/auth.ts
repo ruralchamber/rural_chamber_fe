@@ -119,4 +119,17 @@ export const AUTH_API = {
       };
     }
   },
+
+  SETUP_PASSWORD: async (data: { token: string; password: string }) => {
+    try {
+      const response = await POST(`${AuthbaseURL}/setup-password`, data);
+      return response;
+    } catch (error: any) {
+      return error.response?.data || {
+        success: false,
+        message: error.message || "Could not save the password",
+        error: true
+      };
+    }
+  },
 };

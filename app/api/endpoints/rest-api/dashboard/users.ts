@@ -1,6 +1,6 @@
 // src/app/api/endpoints/rest-api/dashboard/users.ts
 import { baseUrl } from "../../url";
-import { GET } from "@/app/api/lib/client";
+import { GET, POST, PUT, PATCH, DELETE } from "@/app/api/lib/client";
 import { CustomResponse } from "@/interfaces/response";
 
 const AdminUsersBaseURL = `${baseUrl}/dashboard/users`;
@@ -11,6 +11,9 @@ export interface UserFilters {
   subscriptionTier?: string;
   emailVerified?: string;
   search?: string;
+  role?: string;
+  accountStatus?: string;
+  membershipStatus?: string;
 }
 
 export interface User {
@@ -122,6 +125,9 @@ export const ADMIN_USERS_API = {
       if (filters?.subscriptionTier) queryParams.append('subscriptionTier', filters.subscriptionTier);
       if (filters?.emailVerified) queryParams.append('emailVerified', filters.emailVerified);
       if (filters?.search) queryParams.append('search', filters.search);
+      if (filters?.role) queryParams.append('role', filters.role);
+      if (filters?.accountStatus) queryParams.append('accountStatus', filters.accountStatus);
+      if (filters?.membershipStatus) queryParams.append('membershipStatus', filters.membershipStatus);
       
       const url = queryParams.toString() 
         ? `${AdminUsersBaseURL}?${queryParams.toString()}`
@@ -150,5 +156,43 @@ export const ADMIN_USERS_API = {
     } catch (error) {
       throw error;
     }
-  }
+  },
+
+  CREATE_USER: async (payload: {
+    fullName: string;
+    email: string;
+    cellphone?: string;
+    role: string;
+    subscriptionType: string;
+    billingFrequency: string;
+    accountType: string;
+  }) => POST(AdminUsersBaseURL, payload),
+
+  UPDATE_USER: async (userId: number, payload: Record<string, unknown>) =>
+    PUT(`${AdminUsersBaseURL}/${userId}`, payload),
+
+  UPDATE_ROLE: async (userId: number, role: "customer" | "admin") =>
+    PATCH(`${AdminUsersBaseURL}/${userId}/role`, { role }),
+
+  DELETE_USER: async (userId: number, reason: string) =>
+    DELETE(`${AdminUsersBaseURL}/${userId}`, { reason }),
+
+  RESTORE_USER: async (userId: number) =>
+    POST(`${AdminUsersBaseURL}/${userId}/restore`, {}),
+
+  CHANGE_MEMBERSHIP: async (userId: number, payload: Record<string, unknown>) =>
+    POST(`${AdminUsersBaseURL}/${userId}/membership`, payload),
+
+  GET_PLANS: async () => GET(`${baseUrl}/dashboard/membership-plans`),
+
+  GET_OUTSTANDING: async (userId?: number) => {
+    const query = userId ? `?userId=${userId}&status=open` : "?status=open";
+    return GET(`${baseUrl}/dashboard/payments/outstanding${query}`);
+  },
+
+  GENERATE_LINK: async (paymentId: number) =>
+    POST(`${baseUrl}/dashboard/payments/${paymentId}/link`, {}),
+
+  EMAIL_LINK: async (paymentId: number) =>
+    POST(`${baseUrl}/dashboard/payments/${paymentId}/remind`, {}),
 };
