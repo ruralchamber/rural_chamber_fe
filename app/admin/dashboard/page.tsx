@@ -135,6 +135,14 @@ function AdminDashboardContent() {
       onClick: () => router.push("/admin/donations"),
     },
     {
+      title: "Membership Billing",
+      description: "Contributions, recovery, and reports",
+      icon: CreditCard,
+      color: "bg-emerald-600",
+      hoverColor: "hover:bg-emerald-700",
+      onClick: () => router.push("/admin/billing"),
+    },
+    {
       title: "Users Management",
       description: "Manage registered users",
       icon: Users,
